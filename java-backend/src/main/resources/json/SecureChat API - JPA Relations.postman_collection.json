@@ -1,0 +1,1095 @@
+{
+	"info": {
+		"_postman_id": "7c7c3f36-861f-42a6-a42e-7930e1a10748",
+		"name": "SecureChat API - Actual Implementation",
+		"description": "Postman collectie gebaseerd op de daadwerkelijke code implementatie.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "📁 Authentication",
+			"item": [
+				{
+					"name": "POST - Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePass123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registreer een nieuwe gebruiker."
+					},
+					"response": []
+				},
+				{
+					"name": "POST - Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePass123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Log in met bestaande credentials."
+					},
+					"response": []
+				},
+				{
+					"name": "POST - Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Ververs access token met refresh token."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "👤 Users",
+			"item": [
+				{
+					"name": "GET - Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Haal lijst van alle gebruikers op."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get Current User (/me)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						},
+						"description": "Haal gegevens op van ingelogde gebruiker."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get Current User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"profile"
+							]
+						},
+						"description": "Alias voor /me."
+					},
+					"response": []
+				},
+				{
+					"name": "PUT - Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"updateduser\",\n  \"bio\": \"Nieuwe bio\",\n  \"avatar_url\": \"https://example.com/new-avatar.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"profile"
+							]
+						},
+						"description": "Update eigen profiel."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							],
+							"variable": [
+								{
+									"key": "user_id",
+									"value": "uuid-van-gebruiker"
+								}
+							]
+						},
+						"description": "Haal gegevens op van specifieke gebruiker."
+					},
+					"response": []
+				},
+				{
+					"name": "PUT - Update User (Admin/Self)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"updateduser\",\n  \"bio\": \"Nieuwe bio\",\n  \"avatar_url\": \"https://example.com/new-avatar.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							],
+							"variable": [
+								{
+									"key": "user_id",
+									"value": "uuid-van-gebruiker"
+								}
+							]
+						},
+						"description": "Update gebruiker via ID."
+					},
+					"response": []
+				},
+				{
+					"name": "PATCH - Partial Update User",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bio\": \"Nieuwe bio alleen\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							],
+							"variable": [
+								{
+									"key": "user_id",
+									"value": "uuid-van-gebruiker"
+								}
+							]
+						},
+						"description": "Gedeeltelijke update."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Search Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/search?q=test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "test"
+								}
+							]
+						},
+						"description": "Zoek gebruikers met 'q' parameter."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - User Created Chatrooms",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}/chatrooms/created",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}",
+								"chatrooms",
+								"created"
+							],
+							"variable": [
+								{
+									"key": "user_id",
+									"value": "uuid-van-gebruiker"
+								}
+							]
+						},
+						"description": "Haal chatrooms op die door deze gebruiker zijn aangemaakt."
+					},
+					"response": []
+				},
+				{
+					"name": "PUT - Update User Roles (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\\n  \\\"ROLE_USER\\\",\\n  \\\"ROLE_ADMIN\\\"\\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}/roles",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}",
+								"roles"
+							],
+							"variable": [
+								{
+									"key": "user_id",
+									"value": "uuid-van-gebruiker"
+								}
+							]
+						},
+						"description": "Update gebruiker rollen (alleen ADMIN)."
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE - Delete User (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							],
+							"variable": [
+								{
+									"key": "user_id",
+									"value": "uuid-van-gebruiker"
+								}
+							]
+						},
+						"description": "Verwijder gebruiker (soft delete)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "💬 ChatRooms",
+			"item": [
+				{
+					"name": "POST - Create ChatRoom",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Team Discussion\",\n  \"description\": \"Daily standup meeting\",\n  \"isPrivate\": false,\n  \"maxParticipants\": 50\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chatrooms",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms"
+							]
+						},
+						"description": "Maak een nieuwe chatroom aan."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get User ChatRooms",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms"
+							]
+						},
+						"description": "Haal chatrooms op waar de gebruiker lid van is."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get ChatRoom by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Haal details op van specifieke chatroom."
+					},
+					"response": []
+				},
+				{
+					"name": "PUT - Update ChatRoom",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Room Name\",\n  \"description\": \"Updated description\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Update chatroom details."
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE - Delete ChatRoom",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Verwijder een chatroom."
+					},
+					"response": []
+				},
+				{
+					"name": "POST - Join ChatRoom",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/join",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"join"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Treed toe aan een chatroom."
+					},
+					"response": []
+				},
+				{
+					"name": "POST - Leave ChatRoom",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/leave",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"leave"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Verlaat een chatroom."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get Members",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/members",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"members"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Haal lijst van leden op."
+					},
+					"response": []
+				},
+				{
+					"name": "POST - Add Member to ChatRoom",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\\n  \\\"userId\\\": \\\"uuid-van-nieuwe-gebruiker\\\"\\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/members",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"members"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Voeg een lid toe aan een chatroom."
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE - Remove Member from ChatRoom",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/members/{{member_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"members",
+								"{{member_id}}"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								},
+								{
+									"key": "member_id",
+									"value": "uuid-van-lid"
+								}
+							]
+						},
+						"description": "Verwijder een lid uit een chatroom."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "✉️ Messages",
+			"item": [
+				{
+					"name": "POST - Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hello team!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/messages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"messages"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Verstuur een bericht."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Get Pages (Paginated)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/messages?page=0&size=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"messages"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "20"
+								}
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Haal berichten op (gepagineerd)."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Poll Messages",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/messages/poll?since=2025-11-02T10:00:00Z",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"messages",
+								"poll"
+							],
+							"query": [
+								{
+									"key": "since",
+									"value": "2025-11-02T10:00:00Z"
+								}
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Long polling endpoint voor nieuwe berichten."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - SSE Stream",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/event-stream"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/chatrooms/{{room_id}}/stream",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chatrooms",
+								"{{room_id}}",
+								"stream"
+							],
+							"variable": [
+								{
+									"key": "room_id",
+									"value": "uuid-van-chatroom"
+								}
+							]
+						},
+						"description": "Real-time stream van berichten (Server-Sent Events)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "� Files",
+			"item": [
+				{
+					"name": "POST - Upload File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"description": "Selecteer bestand",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/files/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"files",
+								"upload"
+							]
+						},
+						"description": "Upload een bestand. Note: API koppelt dit niet direct aan een room URL."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Poll New Files",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/files/poll?chatRoomId={{room_id}}&since=2025-01-01T00:00:00",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"files",
+								"poll"
+							],
+							"query": [
+								{
+									"key": "chatRoomId",
+									"value": "{{room_id}}"
+								},
+								{
+									"key": "since",
+									"value": "2025-01-01T00:00:00"
+								}
+							]
+						},
+						"description": "Check voor nieuwe bestanden in een chatroom."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Download File",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/files/download/{{file_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"files",
+								"download",
+								"{{file_id}}"
+							],
+							"variable": [
+								{
+									"key": "file_id",
+									"value": "uuid-van-bestand"
+								}
+							]
+						},
+						"description": "Download een bestand."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8081/api",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "plaats-hier-je-token",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "plaats-hier-je-refresh-token",
+			"type": "string"
+		}
+	]
+}

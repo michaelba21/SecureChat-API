@@ -1,0 +1,47 @@
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# Build and Dependencies
+target/
+out/
+node_modules/
+dist/
+build/
+.gradle/
+bin/
+
+# Environment and Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# Logs and Temporary files
+*.log
+logs/
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+
+# Java-Backend specific test/temp files
+java-backend/*.log
+java-backend/*.txt
+java-backend/*.bak
+java-backend/uploads/*
+!java-backend/uploads/.gitkeep
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+.DS_Store

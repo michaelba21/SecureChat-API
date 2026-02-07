@@ -1,0 +1,91 @@
+
+## SecureChat API – Educatieve Licentie (Samenvatting)
+
+Project: SecureChat API – Hybride Backend Chat App
+Auteur: Michael Barak
+Cursus: Backend Development – Eindopdracht Deel 2
+Versie: 1 | februari 2026
+
+# Doel
+
+Dit project is uitsluitend gemaakt om van te leren. Het is bedoeld om:
+
+Echte backend development vaardigheden te tonen
+
+Theoretische kennis toe te passen
+
+Beveiliging, architectuur en 'best practices' te demonstreren
+
+Het leerproces te documenteren
+
+# Wat Je Mag Doen
+
+De code bestuderen en ervan leren
+
+Refereren aan patronen, ontwerpkeuzes en implementaties
+
+Forken of experimenteren voor educatieve doeleinden
+
+Links delen voor discussie
+
+Het citeren in documenten, zolang je ook je eigen werk crediteert
+
+# Wat Je Niet Mag Doen
+
+Het commercieel gebruiken
+
+Claimen als je eigen werk
+
+Het indienen voor schoolwerk als je eigen werk
+
+Deployen in productie zonder toestemming
+
+Auteurs- of licentie-informatie verwijderen
+
+# Naamsvermelding
+
+Als je dit project gebruikt:
+
+Behoud copyright vermeldingen
+
+Credit Michael Barak
+
+Link naar de originele repository
+
+Vermeld dat het voor educatieve doeleinden is
+
+# Beveiliging & Deployment
+
+Deze code is enkel om te leren
+
+Het bevat dev instellingen (bijv. hardcoded secrets, debug logging)
+
+Gebruik het niet in productie zonder alles te beveiligen
+
+# Derde Partij Bibliotheken
+
+Dit project gebruikt open-source bibliotheken zoals Spring Boot, Express, PostgreSQL JDBC en JUnit, elk met hun eigen licentie
+
+# AVG & Data Gebruik
+
+Gebruik alleen testdata, nooit echte persoonlijke info
+
+Verwijder data na het testen
+
+Houd je aan de regels voor data van je instelling
+
+# Doelgroep
+
+Studenten die backend development leren
+
+Docenten die backend concepten onderwijzen
+
+Developers die een referentie zoeken
+
+Niet voor commercieel of productiegebruik
+
+# Slotopmerkingen
+
+Dit project toont moderne backend patronen, beveiliging best practices en professionele documentatie. Gebruik het verantwoordelijk en credit altijd de auteur.
+
+© 2026 Michael Barak – Alleen voor educatief gebruik
