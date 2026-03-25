@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.securechat.dto.RoleAssignmentRequestTest
--------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s - in com.securechat.dto.RoleAssignmentRequestTest

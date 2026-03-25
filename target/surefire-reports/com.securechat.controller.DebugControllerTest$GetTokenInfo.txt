@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.securechat.controller.DebugControllerTest$GetTokenInfo
--------------------------------------------------------------------------------
-Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.081 s - in com.securechat.controller.DebugControllerTest$GetTokenInfo
