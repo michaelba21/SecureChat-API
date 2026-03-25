@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.dto</a> &gt; <span class="el_source">AuthResponse.java</span></div><h1>AuthResponse.java</h1><pre class="source lang-java linenums">package com.securechat.dto;
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+@Data // Lombok: generates getters, setters, equals, hashCode, toString
+@NoArgsConstructor 
+@AllArgsConstructor // Lombok: generates constructor with all fields
+public class AuthResponse {
+    private String token; 
+    private String refreshToken; // Refresh token for obtaining new access tokens
+    private String message;
+    private UserInfo userInfo;
+    private String error; 
+
+    // I made a constructor that matches the AuthService call (6 parameters now)
+    public AuthResponse(String token, String refreshToken, String message, String username, String email,
+<span class="fc" id="L18">            String userId) {</span>
+<span class="fc" id="L19">        this.token = token; // Set access token</span>
+<span class="fc" id="L20">        this.refreshToken = refreshToken; </span>
+<span class="fc" id="L21">        this.message = message; </span>
+<span class="fc" id="L22">        this.userInfo = new UserInfo(userId, username, email); // Create user info object</span>
+<span class="fc" id="L23">        this.error = null; // No error for successful response</span>
+<span class="fc" id="L24">    }</span>
+
+    // Constructor with token, userInfo, and error
+<span class="fc" id="L27">    public AuthResponse(String token, UserInfo userInfo, String error) {</span>
+<span class="fc" id="L28">        this.token = token; // Set access token</span>
+<span class="fc" id="L29">        this.userInfo = userInfo; </span>
+<span class="fc" id="L30">        this.error = error; </span>
+<span class="fc" id="L31">        this.refreshToken = null; </span>
+<span class="fc" id="L32">        this.message = null; // No message</span>
+<span class="fc" id="L33">    }</span>
+
+    // Static factory methods
+    public static AuthResponse success(String token, String refreshToken, String message, String username, String email,
+            String userId) {
+<span class="fc" id="L38">        return new AuthResponse(token, refreshToken, message, username, email, userId); // Success response with all parameters</span>
+    }
+
+    public static AuthResponse success(String token, UserInfo userInfo) {
+<span class="fc" id="L42">        return new AuthResponse(token, userInfo, null); // Success response with token and user info</span>
+    }
+
+    public static AuthResponse error(String errorMessage) {
+<span class="fc" id="L46">        AuthResponse response = new AuthResponse(); // Create new instance</span>
+<span class="fc" id="L47">        response.setError(errorMessage); </span>
+<span class="fc" id="L48">        return response; // Return error response</span>
+    }
+
+    // UserInfo inner class
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserInfo {
+        private String userId; 
+        private String username; // Display name
+        private String email; 
+
+        public String getUserId() { // Getter for userId
+<span class="fc" id="L61">            return userId;</span>
+        }
+
+        public void setUserId(String userId) {
+<span class="fc" id="L65">            this.userId = userId;</span>
+<span class="fc" id="L66">        }</span>
+
+        public String getUsername() { // Getter for username
+<span class="fc" id="L69">            return username;</span>
+        }
+
+        public void setUsername(String username) { 
+<span class="fc" id="L73">            this.username = username;</span>
+<span class="fc" id="L74">        }</span>
+
+        public String getEmail() { 
+<span class="fc" id="L77">            return email;</span>
+        }
+
+        public void setEmail(String email) { 
+<span class="fc" id="L81">            this.email = email;</span>
+<span class="fc" id="L82">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

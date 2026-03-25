@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LocalFileStorageService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.service</a> &gt; <span class="el_source">LocalFileStorageService.java</span></div><h1>LocalFileStorageService.java</h1><pre class="source lang-java linenums">
+package com.securechat.service;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+
+@Service
+<span class="fc" id="L21">@Slf4j</span>
+public class LocalFileStorageService implements FileStorageService {
+
+    private final Path uploadDir;
+    // Constructor injection with default value if property not set
+    @Autowired
+<span class="fc" id="L27">    public LocalFileStorageService(@Value(&quot;${app.upload.dir:uploads}&quot;) String uploadDir) {</span>
+<span class="fc" id="L28">        this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();</span>
+<span class="fc" id="L29">    }</span>
+// Executes after dependency injection to ensure directory exists
+    @PostConstruct
+    public void init() throws IOException {
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        if (!Files.exists(uploadDir)) {</span>
+            try {
+<span class="nc" id="L35">                Files.createDirectories(uploadDir);</span>
+<span class="nc" id="L36">                log.info(&quot;Initialized upload directory at: {}&quot;, uploadDir);</span>
+<span class="nc" id="L37">            } catch (IOException e) {</span>
+<span class="nc" id="L38">                log.error(&quot;Could not create upload directory: {}&quot;, uploadDir, e);</span>
+<span class="nc" id="L39">                throw e;</span>
+<span class="nc" id="L40">            }</span>
+        }
+<span class="fc" id="L42">    }</span>
+
+    @Override
+    public String storeFile(MultipartFile file) throws IOException {
+<span class="fc" id="L46">        String originalName = file.getOriginalFilename();</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        String sanitizedName = sanitizeFilename(originalName != null ? originalName : &quot;file&quot;);</span>
+        // Generate unique filename to prevent collisions
+<span class="fc" id="L49">        String uniqueFileName = UUID.randomUUID() + &quot;_&quot; + sanitizedName;</span>
+<span class="fc" id="L50">        Path filePath = uploadDir.resolve(uniqueFileName).normalize();</span>
+
+        // Extra security check: ensure the resolved path is still inside the upload directory
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (!filePath.startsWith(uploadDir)) {</span>
+<span class="nc" id="L54">            log.error(&quot;Attempted path traversal detected during store: {}&quot;, uniqueFileName);</span>
+<span class="nc" id="L55">            throw new SecurityException(&quot;Cannot store file outside of upload directory&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L59">            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);</span>
+<span class="fc" id="L60">            log.debug(&quot;Stored file {} at {}&quot;, uniqueFileName, filePath);</span>
+<span class="fc" id="L61">            return uniqueFileName;</span>
+<span class="nc" id="L62">        } catch (IOException e) {</span>
+<span class="nc" id="L63">            log.error(&quot;Failed to store file {}: {}&quot;, uniqueFileName, e.getMessage());</span>
+<span class="nc" id="L64">            throw e;</span>
+        }
+    }
+
+    @Override
+    public Resource loadFile(String filename) throws IOException {
+<span class="fc" id="L70">        Path filePath = validateAndResolvePath(filename);</span>
+<span class="fc" id="L71">        Resource resource = new UrlResource(filePath.toUri());</span>
+  // Validate filename and resolve to absolute path and Check if file exists and is readable
+<span class="pc bpc" id="L73" title="1 of 4 branches missed.">        if (!resource.exists() || !resource.isReadable()) {</span>
+<span class="fc" id="L74">            log.warn(&quot;File not found or not readable: {}&quot;, filename);</span>
+<span class="fc" id="L75">            throw new FileNotFoundException(&quot;File not found: &quot; + filename);</span>
+        }
+
+<span class="fc" id="L78">        return resource;</span>
+    }
+
+    @Override
+    public void deleteFile(String filename) throws IOException {
+<span class="fc" id="L83">        Path filePath = validateAndResolvePath(filename);</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (Files.deleteIfExists(filePath)) {</span>
+<span class="fc" id="L85">            log.debug(&quot;Deleted file: {}&quot;, filename);</span>
+        } else {
+<span class="fc" id="L87">            log.debug(&quot;Delete skipped, file not found: {}&quot;, filename);</span>
+        }
+<span class="fc" id="L89">    }</span>
+ // Centralized path validation and resolution logic
+    private Path validateAndResolvePath(String filename) {
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">        if (filename == null || filename.contains(&quot;..&quot;)) {</span>
+<span class="fc" id="L93">            log.error(&quot;Invalid filename or path traversal attempt: {}&quot;, filename);</span>
+<span class="fc" id="L94">            throw new SecurityException(&quot;Invalid filename&quot;);</span>
+        }
+        
+<span class="fc" id="L97">        Path filePath = uploadDir.resolve(filename).normalize();</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        if (!filePath.startsWith(uploadDir)) {</span>
+<span class="nc" id="L99">            log.error(&quot;Path traversal attempt detected: {}&quot;, filename);</span>
+<span class="nc" id="L100">            throw new SecurityException(&quot;Access denied&quot;);</span>
+        }
+<span class="fc" id="L102">        return filePath;</span>
+    }
+
+    /**
+     * Sanitizes the filename to prevent path traversal while keeping the extension intact.
+     * Removes non-safe characters and handles &quot;..&quot; sequences.
+     */
+    private String sanitizeFilename(String filename) {
+<span class="pc bpc" id="L110" title="2 of 4 branches missed.">        if (filename == null || filename.isEmpty()) {</span>
+<span class="nc" id="L111">            return &quot;file&quot;;</span>
+        }
+
+        // Step 1: Replace &quot;..&quot; with &quot;___&quot; to prevent directory traversal
+<span class="fc" id="L115">        String cleaned = filename.replace(&quot;..&quot;, &quot;___&quot;);</span>
+
+        // Step 2: Remove all non-alphanumeric characters except dots, underscores, and hyphens
+<span class="fc" id="L118">        cleaned = cleaned.replaceAll(&quot;[^a-zA-Z0-9._-]&quot;, &quot;&quot;);</span>
+
+        // Step 3: Add leading underscore to indicate sanitization
+<span class="fc" id="L121">        cleaned = &quot;_&quot; + cleaned;</span>
+
+        // Step 4: Safety fallback
+<span class="pc bpc" id="L124" title="2 of 4 branches missed.">        if (cleaned.isBlank() || cleaned.matches(&quot;[._]+&quot;)) {</span>
+<span class="nc" id="L125">            return &quot;file&quot;;</span>
+        }
+
+<span class="fc" id="L128">        return cleaned;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

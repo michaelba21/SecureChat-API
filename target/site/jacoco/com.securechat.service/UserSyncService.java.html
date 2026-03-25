@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserSyncService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.service</a> &gt; <span class="el_source">UserSyncService.java</span></div><h1>UserSyncService.java</h1><pre class="source lang-java linenums">package com.securechat.service;
+
+import com.securechat.entity.User;
+import com.securechat.repository.UserRepository;
+import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+@Service // Marks this as a Spring service bean
+public class UserSyncService {
+
+<span class="fc" id="L26">    private static final Logger logger = LoggerFactory.getLogger(UserSyncService.class);</span>
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Autowired
+<span class="fc" id="L32">    public UserSyncService(UserRepository userRepository, PasswordEncoder passwordEncoder) {</span>
+<span class="fc" id="L33">        this.userRepository = userRepository;</span>
+<span class="fc" id="L34">        this.passwordEncoder = passwordEncoder;</span>
+<span class="fc" id="L35">    }</span>
+
+    /**
+     * Get or create user from JWT token with proper race condition handling.
+     * Uses the JWT subject (Keycloak user UUID) as the primary user ID.
+     */
+    @Transactional(value = jakarta.transaction.Transactional.TxType.REQUIRED)
+    public User getOrCreateUser(Jwt jwt) {
+        // Extract subject (Keycloak user UUID) from JWT token
+<span class="fc" id="L44">        String keycloakSub = jwt.getSubject();</span>
+<span class="pc bpc" id="L45" title="1 of 4 branches missed.">        if (keycloakSub == null || keycloakSub.trim().isEmpty()) {</span>
+<span class="fc" id="L46">            throw new IllegalArgumentException(&quot;JWT subject claim is null or empty&quot;);</span>
+        }
+
+        // Convert Keycloak sub to UUID for use as user ID
+        UUID userId;
+        try {
+<span class="fc" id="L52">            userId = UUID.fromString(keycloakSub);</span>
+<span class="nc" id="L53">        } catch (IllegalArgumentException e) {</span>
+            // If Keycloak sub is not a valid UUID, generate one
+<span class="nc" id="L55">            userId = UUID.randomUUID();</span>
+<span class="fc" id="L56">        }</span>
+
+        // Fast-path: Try to find existing user by ID first
+<span class="fc" id="L59">        Optional&lt;User&gt; existing = userRepository.findById(userId);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (existing.isPresent()) {</span>
+<span class="fc" id="L61">            logger.debug(&quot;User already exists for Keycloak sub: {}&quot;, keycloakSub);</span>
+<span class="fc" id="L62">            return existing.get();</span>
+        }
+
+        // Extract email from JWT claims
+<span class="fc" id="L66">        String emailClaim = jwt.getClaimAsString(&quot;email&quot;);</span>
+        
+        // CRITICAL: Check by real email if provided BEFORE creating new user
+        // This prevents duplicate users when same email is used with different Keycloak accounts
+<span class="pc bpc" id="L70" title="2 of 4 branches missed.">        if (emailClaim != null &amp;&amp; !emailClaim.isBlank()) {</span>
+<span class="fc" id="L71">            logger.debug(&quot;Checking for existing user with email: {}&quot;, emailClaim);</span>
+<span class="fc" id="L72">            Optional&lt;User&gt; existingByEmail = userRepository.findByEmail(emailClaim);</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">            if (existingByEmail.isPresent()) {</span>
+<span class="fc" id="L74">                logger.info(&quot;Found existing user by email: {} (sub: {})&quot;, emailClaim, keycloakSub);</span>
+<span class="fc" id="L75">                return existingByEmail.get();</span>
+            }
+        }
+
+        // Extract preferred username from JWT
+<span class="fc" id="L80">        String preferredUsername = jwt.getClaimAsString(&quot;preferred_username&quot;);</span>
+
+        // Prepare username and email
+        // Use real Keycloak email if provided, otherwise generate unique synthetic email
+<span class="pc bpc" id="L84" title="2 of 4 branches missed.">        String email = (emailClaim != null &amp;&amp; !emailClaim.isBlank()) </span>
+<span class="fc" id="L85">            ? emailClaim </span>
+<span class="pc" id="L86">            : generateUniqueEmail(userId);</span>
+
+        // Use preferred_username from JWT if available and unique, otherwise generate unique username
+        String username;
+<span class="pc bpc" id="L90" title="1 of 4 branches missed.">        if (preferredUsername != null &amp;&amp; !preferredUsername.isBlank()) {</span>
+            // Check if preferred username is already taken
+<span class="fc" id="L92">            Optional&lt;User&gt; existingByUsername = userRepository.findByUsername(preferredUsername);</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            if (existingByUsername.isPresent()) {</span>
+                // Preferred username taken, generate unique variant
+<span class="fc" id="L95">                logger.info(&quot;Preferred username '{}' already taken, generating unique variant&quot;, preferredUsername);</span>
+<span class="fc" id="L96">                username = generateUniqueUsernameWithPrefix(preferredUsername, userId);</span>
+            } else {
+<span class="fc" id="L98">                username = preferredUsername;</span>
+            }
+<span class="fc" id="L100">        } else {</span>
+<span class="fc" id="L101">            username = generateUniqueUsername(userId);</span>
+        }
+
+        // Create new user
+<span class="fc" id="L105">        User newUser = new User();</span>
+<span class="fc" id="L106">        newUser.setId(userId);</span>
+<span class="fc" id="L107">        newUser.setEmail(email);</span>
+<span class="fc" id="L108">        newUser.setUsername(username);</span>
+<span class="fc" id="L109">        newUser.setPasswordHash(passwordEncoder.encode(&quot;keycloak:&quot; + keycloakSub));</span>
+<span class="fc" id="L110">        newUser.setIsActive(true);</span>
+<span class="fc" id="L111">        newUser.setCreatedAt(LocalDateTime.now());</span>
+<span class="fc" id="L112">        newUser.setLastLogin(LocalDateTime.now());</span>
+<span class="fc" id="L113">        newUser.setStatus(User.UserStatus.OFFLINE);</span>
+
+        // Set user roles based on JWT claims
+<span class="fc" id="L116">        Set&lt;User.UserRole&gt; roles = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L117">        roles.add(User.UserRole.ROLE_USER);</span>
+
+        // Add ADMIN role if JWT indicates admin privileges
+<span class="fc bfc" id="L120" title="All 2 branches covered.">        if (hasAdminRole(jwt)) {</span>
+<span class="fc" id="L121">            roles.add(User.UserRole.ROLE_ADMIN);</span>
+        }
+<span class="fc" id="L123">        newUser.setRoles(roles);</span>
+
+        try {
+            // Save new user
+<span class="fc" id="L127">            User saved = userRepository.save(newUser);</span>
+<span class="fc" id="L128">            logger.info(&quot;Provisioned local user for Keycloak sub: {}&quot;, keycloakSub);</span>
+<span class="fc" id="L129">            return saved;</span>
+
+<span class="nc" id="L131">        } catch (DataIntegrityViolationException e) {</span>
+            // Race condition: another thread/instance inserted at same time
+<span class="nc" id="L133">            logger.warn(&quot;Race condition detected during user creation for sub {}, attempting recovery: {}&quot;, keycloakSub, e.getMessage());</span>
+
+            // Recovery attempt 1: lookup by ID
+<span class="nc" id="L136">            Optional&lt;User&gt; recovered = userRepository.findById(userId);</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">            if (recovered.isPresent()) {</span>
+<span class="nc" id="L138">                logger.info(&quot;Successfully recovered user after race condition by id: {}&quot;, userId);</span>
+<span class="nc" id="L139">                return recovered.get();</span>
+            }
+
+            // Recovery attempt 2: lookup by username
+<span class="nc" id="L143">            recovered = userRepository.findByUsername(username);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            if (recovered.isPresent()) {</span>
+<span class="nc" id="L145">                logger.info(&quot;Recovered user by username after race condition: {}&quot;, username);</span>
+<span class="nc" id="L146">                return recovered.get();</span>
+            }
+
+            // Recovery attempt 3: lookup by email
+<span class="nc" id="L150">            recovered = userRepository.findByEmail(email);</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">            if (recovered.isPresent()) {</span>
+<span class="nc" id="L152">                logger.info(&quot;Recovered user by email after race condition: {}&quot;, email);</span>
+<span class="nc" id="L153">                return recovered.get();</span>
+            }
+
+            // Unable to recover
+<span class="nc" id="L157">            logger.error(&quot;Failed to recover user after race condition for sub {}&quot;, keycloakSub);</span>
+<span class="nc" id="L158">            throw new RuntimeException(&quot;Cannot recover user after race condition: &quot; + e.getMessage(), e);</span>
+        }
+    }
+
+    /**
+     * Generates a guaranteed unique username using loop-based verification.
+     * This handles race conditions by continuously checking uniqueness until success.
+     */
+    private String generateUniqueUsername(UUID userId) {
+<span class="fc" id="L167">        String baseUsername = &quot;user-&quot; + userId;</span>
+<span class="fc" id="L168">        int attempt = 0;</span>
+<span class="fc" id="L169">        String username = baseUsername;</span>
+
+        // Try base username first, then numbered variants if conflicts exist
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        while (userRepository.findByUsername(username).isPresent()) {</span>
+<span class="nc" id="L173">            attempt++;</span>
+<span class="nc" id="L174">            username = baseUsername + &quot;-&quot; + attempt;</span>
+            
+            // Safety limit to prevent infinite loops
+<span class="nc bnc" id="L177" title="All 2 branches missed.">            if (attempt &gt; 1000) {</span>
+<span class="nc" id="L178">                logger.error(&quot;Unable to generate unique username after 1000 attempts for userId: {}&quot;, userId);</span>
+<span class="nc" id="L179">                throw new RuntimeException(&quot;Cannot generate unique username for user: &quot; + userId);</span>
+            }
+        }
+
+<span class="fc" id="L183">        logger.debug(&quot;Generated unique username for userId {}: {}&quot;, userId, username);</span>
+<span class="fc" id="L184">        return username;</span>
+    }
+
+    /**
+     * Generates a unique username based on a preferred prefix.
+     * If the preferred username is taken, appends a number to make it unique.
+     */
+    private String generateUniqueUsernameWithPrefix(String preferredPrefix, UUID userId) {
+<span class="fc" id="L192">        String baseUsername = preferredPrefix;</span>
+<span class="fc" id="L193">        int attempt = 0;</span>
+<span class="fc" id="L194">        String username = baseUsername;</span>
+
+        // Try base username first, then numbered variants if conflicts exist
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        while (userRepository.findByUsername(username).isPresent()) {</span>
+<span class="fc" id="L198">            attempt++;</span>
+<span class="fc" id="L199">            username = baseUsername + &quot;-&quot; + attempt;</span>
+            
+            // Safety limit to prevent infinite loops
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">            if (attempt &gt; 1000) {</span>
+<span class="nc" id="L203">                logger.error(&quot;Unable to generate unique username from prefix '{}' after 1000 attempts&quot;, preferredPrefix);</span>
+                // Fallback to UUID-based username
+<span class="nc" id="L205">                return generateUniqueUsername(userId);</span>
+            }
+        }
+
+<span class="fc" id="L209">        logger.debug(&quot;Generated unique username from prefix '{}': {}&quot;, preferredPrefix, username);</span>
+<span class="fc" id="L210">        return username;</span>
+    }
+
+    /**
+     * Generates a guaranteed unique email address using loop-based verification.
+     * This handles race conditions by continuously checking uniqueness until success.
+     */
+    private String generateUniqueEmail(UUID userId) {
+<span class="nc" id="L218">        String baseEmail = userId + &quot;@keycloak.local&quot;;</span>
+<span class="nc" id="L219">        int attempt = 0;</span>
+<span class="nc" id="L220">        String email = baseEmail;</span>
+
+        // Try base email first, then numbered variants if conflicts exist
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        while (userRepository.findByEmail(email).isPresent()) {</span>
+<span class="nc" id="L224">            attempt++;</span>
+<span class="nc" id="L225">            email = userId + &quot;+&quot; + attempt + &quot;@keycloak.local&quot;;</span>
+
+            // Safety limit to prevent infinite loops
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            if (attempt &gt; 1000) {</span>
+<span class="nc" id="L229">                logger.error(&quot;Unable to generate unique email after 1000 attempts for userId: {}&quot;, userId);</span>
+<span class="nc" id="L230">                throw new RuntimeException(&quot;Cannot generate unique email for user: &quot; + userId);</span>
+            }
+        }
+
+<span class="nc" id="L234">        logger.debug(&quot;Generated unique email for userId {}: {}&quot;, userId, email);</span>
+<span class="nc" id="L235">        return email;</span>
+    }
+
+    /**
+     * Checks if user has admin role in JWT claims
+     */
+    private boolean hasAdminRole(Jwt jwt) {
+<span class="pc bpc" id="L242" title="2 of 6 branches missed.">        if (hasRole(jwt, &quot;admin&quot;) || hasRole(jwt, &quot;ROLE_ADMIN&quot;) || hasRole(jwt, &quot;ADMIN&quot;)) {</span>
+<span class="fc" id="L243">            return true;</span>
+        }
+
+<span class="fc" id="L246">        return false;</span>
+    }
+
+    /**
+     * Generic role checker: looks for role in both realm_access and resource_access claims
+     */
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private boolean hasRole(Jwt jwt, String role) {
+        // Check realm_access.roles (Keycloak realm-level roles)
+<span class="fc" id="L255">        Map&lt;String, Object&gt; realmAccess = jwt.getClaim(&quot;realm_access&quot;);</span>
+<span class="pc bpc" id="L256" title="1 of 4 branches missed.">        if (realmAccess != null &amp;&amp; realmAccess.get(&quot;roles&quot;) instanceof List&lt;?&gt; roles) {</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">            if (roles.stream().anyMatch(r -&gt; role.equalsIgnoreCase(String.valueOf(r)))) {</span>
+<span class="fc" id="L258">                return true;</span>
+            }
+        }
+
+        // Check resource_access.client.roles (Keycloak client-specific roles)
+<span class="fc" id="L263">        Map&lt;String, Object&gt; resourceAccess = jwt.getClaim(&quot;resource_access&quot;);</span>
+<span class="pc bpc" id="L264" title="1 of 2 branches missed.">        if (resourceAccess != null) {</span>
+<span class="nc" id="L265">            Object clientAccess = resourceAccess.get(&quot;securechat-backend&quot;);</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">            if (clientAccess instanceof Map&lt;?, ?&gt; clientMap) {</span>
+<span class="nc" id="L267">                Object clientRoles = clientMap.get(&quot;roles&quot;);</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                if (clientRoles instanceof List&lt;?&gt; roles) {</span>
+<span class="nc" id="L269">                    return roles.stream().anyMatch(r -&gt; role.equalsIgnoreCase(String.valueOf(r)));</span>
+                }
+            }
+        }
+
+<span class="fc" id="L274">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

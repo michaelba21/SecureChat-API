@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Message.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.entity</a> &gt; <span class="el_source">Message.java</span></div><h1>Message.java</h1><pre class="source lang-java linenums">package com.securechat.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;messages&quot;, indexes = {
+    @Index(name = &quot;idx_message_chatroom_timestamp&quot;, columnList = &quot;chat_room_id, timestamp&quot;), // Optimized for retrieving messages by chat room and time
+    @Index(name = &quot;idx_message_user&quot;, columnList = &quot;user_id&quot;), 
+    @Index(name = &quot;idx_message_is_deleted&quot;, columnList = &quot;is_deleted&quot;), // Optimized for filtering deleted messages
+    @Index(name = &quot;idx_message_timestamp&quot;, columnList = &quot;timestamp&quot;) 
+})
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Message {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id; // Primary key - unique identifier for each message
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;user_id&quot;, nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private User sender; // User who sent the message (lazy loaded for performance)
+
+    @Column(name = &quot;username&quot;, nullable = false, length = 50)
+    private String username; // Cached username to avoid joining User table for display purposes
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;chat_room_id&quot;, nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private ChatRoom chatRoom; // Chat room where message was sent (lazy loaded for performance)
+
+    @Column(nullable = false, length = 5000)
+    private String content; // Message text content (max 5000 characters)
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;message_type&quot;, nullable = false)
+    @Builder.Default
+    private MessageType messageType = MessageType.TEXT; // Type of message: TEXT, IMAGE, or FILE
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;file_id&quot;, unique = true)
+    private File attachment; // Optional file attachment (one-to-one relationship)
+
+    @Column(nullable = false)
+    private LocalDateTime timestamp; // When the message was sent
+
+    @Column(name = &quot;is_edited&quot;, nullable = false)
+    @Builder.Default
+    private Boolean isEdited = false; // Flag indicating if message has been edited
+
+    @Column(name = &quot;edited_at&quot;)
+    private LocalDateTime editedAt; // Timestamp of last edit (null if never edited)
+
+    @Column(name = &quot;is_deleted&quot;, nullable = false)
+    @Builder.Default
+    private Boolean isDeleted = false; // Soft delete flag - true if message is deleted
+
+    @Column(name = &quot;deleted_at&quot;)
+    private LocalDateTime deletedAt; // When message was deleted (null if not deleted)
+    
+    @Column(name = &quot;deleted_by&quot;)
+    private UUID deletedBy; // ID of user who deleted the message (for audit purposes)
+
+    @OneToMany(mappedBy = &quot;message&quot;, cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List&lt;MessageAuditLog&gt; auditLogs = new ArrayList&lt;&gt;(); // Audit trail for message edits/deletions
+
+    // JPA lifecycle callback - executes before entity is persisted to database
+    @PrePersist
+    public void onCreate() {
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (timestamp == null) {</span>
+<span class="fc" id="L81">            timestamp = LocalDateTime.now(); // Auto-set timestamp if not provided</span>
+        }
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        if (isDeleted == null) {</span>
+<span class="nc" id="L84">            isDeleted = false; // Default to not deleted</span>
+        }
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (isEdited == null) {</span>
+<span class="nc" id="L87">            isEdited = false; </span>
+        }
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        if (messageType == null) {</span>
+<span class="nc" id="L90">            messageType = MessageType.TEXT; // Default to TEXT type</span>
+        }
+<span class="fc" id="L92">    }</span>
+
+    /**
+     * Marks the message as deleted (soft delete).
+     * Performs logical deletion without physically removing from database.
+     * @param userId The ID of the user performing the deletion.
+     */
+    public void softDelete(UUID userId) {
+<span class="fc" id="L100">        this.isDeleted = true;</span>
+<span class="fc" id="L101">        this.deletedAt = LocalDateTime.now();</span>
+<span class="fc" id="L102">        this.deletedBy = userId;</span>
+<span class="fc" id="L103">    }</span>
+
+    // Defines the types of messages that can be sent
+<span class="fc" id="L106">    public enum MessageType {</span>
+<span class="fc" id="L107">        TEXT, </span>
+<span class="fc" id="L108">        IMAGE,  // Image file message</span>
+<span class="fc" id="L109">        FILE   </span>
+    }
+
+    // Manual Getters and Setters (required even with Lombok @Builder annotation)
+<span class="fc" id="L113">    public UUID getId() { return id; }</span>
+<span class="fc" id="L114">    public void setId(UUID id) { this.id = id; }</span>
+
+<span class="fc" id="L116">    public User getSender() { return sender; }</span>
+<span class="fc" id="L117">    public void setSender(User sender) { this.sender = sender; }</span>
+
+<span class="fc" id="L119">    public String getUsername() { return username; }</span>
+<span class="fc" id="L120">    public void setUsername(String username) { this.username = username; }</span>
+
+<span class="fc" id="L122">    public ChatRoom getChatRoom() { return chatRoom; }</span>
+<span class="fc" id="L123">    public void setChatRoom(ChatRoom chatRoom) { this.chatRoom = chatRoom; }</span>
+
+<span class="fc" id="L125">    public String getContent() { return content; }</span>
+<span class="fc" id="L126">    public void setContent(String content) { this.content = content; }</span>
+
+<span class="fc" id="L128">    public MessageType getMessageType() { return messageType; }</span>
+<span class="fc" id="L129">    public void setMessageType(MessageType messageType) { this.messageType = messageType; }</span>
+
+<span class="fc" id="L131">    public File getAttachment() { return attachment; }</span>
+<span class="fc" id="L132">    public void setAttachment(File attachment) { this.attachment = attachment; }</span>
+
+<span class="fc" id="L134">    public LocalDateTime getTimestamp() { return timestamp; }</span>
+<span class="fc" id="L135">    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }</span>
+
+<span class="fc" id="L137">    public Boolean getIsEdited() { return isEdited; }</span>
+<span class="fc" id="L138">    public void setIsEdited(Boolean isEdited) { this.isEdited = isEdited; }</span>
+
+<span class="fc" id="L140">    public LocalDateTime getEditedAt() { return editedAt; }</span>
+<span class="fc" id="L141">    public void setEditedAt(LocalDateTime editedAt) { this.editedAt = editedAt; }</span>
+
+<span class="fc" id="L143">    public Boolean getIsDeleted() { return isDeleted; }</span>
+<span class="fc" id="L144">    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }</span>
+
+<span class="fc" id="L146">    public LocalDateTime getDeletedAt() { return deletedAt; }</span>
+<span class="fc" id="L147">    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }</span>
+
+<span class="fc" id="L149">    public UUID getDeletedBy() { return deletedBy; }</span>
+<span class="fc" id="L150">    public void setDeletedBy(UUID deletedBy) { this.deletedBy = deletedBy; }</span>
+
+<span class="fc" id="L152">    public List&lt;MessageAuditLog&gt; getAuditLogs() { return auditLogs; }</span>
+<span class="fc" id="L153">    public void setAuditLogs(List&lt;MessageAuditLog&gt; auditLogs) { this.auditLogs = auditLogs; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefreshTokenService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.service</a> &gt; <span class="el_source">RefreshTokenService.java</span></div><h1>RefreshTokenService.java</h1><pre class="source lang-java linenums">package com.securechat.service;
+import com.securechat.entity.RefreshToken;
+import com.securechat.entity.User;
+import com.securechat.repository.RefreshTokenRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+@Transactional  // All methods run within database transactions
+<span class="fc" id="L21">public class RefreshTokenService {</span>
+
+<span class="fc" id="L23">    private static final Logger logger = LoggerFactory.getLogger(RefreshTokenService.class);</span>
+
+    @Autowired
+    private RefreshTokenRepository tokenRepository;  // Data access layer for refresh tokens
+
+    /**
+     * Creates a new refresh token for a user with device tracking information.
+     * Implements security policy: maximum 5 active tokens per user (removes oldest).
+     */
+    public RefreshToken createToken(User user, String ipAddress, String userAgent) {
+        // Check current token count for this user (prevent token flooding)
+<span class="fc" id="L34">        List&lt;RefreshToken&gt; existing = tokenRepository.findByUser(user);</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        if (existing.size() &gt;= 5) {</span>
+            // Security policy: remove oldest token when user has 5 active tokens
+<span class="fc" id="L37">            existing.stream()</span>
+<span class="fc" id="L38">                    .min(Comparator.comparing(RefreshToken::getCreatedAt))  // Find oldest token and Delete it</span>
+<span class="fc" id="L39">                    .ifPresent(tokenRepository::delete);  </span>
+        }
+
+        // Create new refresh token entity
+<span class="fc" id="L43">        RefreshToken token = new RefreshToken();</span>
+<span class="fc" id="L44">        token.setToken(UUID.randomUUID().toString());  // Generate unique token string</span>
+<span class="fc" id="L45">        token.setUser(user);  </span>
+<span class="fc" id="L46">        token.setExpiryDate(Instant.now().plus(7, ChronoUnit.DAYS));  // 7-day validity</span>
+<span class="fc" id="L47">        token.setCreatedAt(Instant.now());  </span>
+<span class="fc" id="L48">        token.setIpAddress(ipAddress);  // Store client IP for security auditing</span>
+        
+        // Ensure userAgent is never null (satisfies database constraints)
+<span class="fc bfc" id="L51" title="All 4 branches covered.">        token.setUserAgent((userAgent == null || userAgent.isBlank()) ? &quot;unknown&quot; : userAgent);</span>
+
+        // Log token creation (excluding sensitive token value in production)
+<span class="fc" id="L54">        logger.debug(</span>
+                &quot;Saving refresh token. token={}, userId={}, ipAddress={}, userAgent={}&quot;,
+<span class="fc" id="L56">                token.getToken(),</span>
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">                user != null ? user.getId() : null,</span>
+<span class="fc" id="L58">                token.getIpAddress(),</span>
+<span class="fc" id="L59">                token.getUserAgent());</span>
+
+        try {
+            // saveAndFlush() forces immediate database write (not deferred)
+            // Helps catch constraint violations early rather than at transaction commit
+<span class="fc" id="L64">            RefreshToken saved = tokenRepository.saveAndFlush(token);</span>
+<span class="fc" id="L65">            logger.debug(&quot;Refresh token saved. id={}, token={}&quot;, saved.getId(), saved.getToken());</span>
+<span class="fc" id="L66">            return saved;</span>
+<span class="nc" id="L67">        } catch (RuntimeException ex) {</span>
+            // Log detailed error but don't expose database details to client
+<span class="nc" id="L69">            logger.error(&quot;Failed to persist refresh token. token={}&quot;, token.getToken(), ex);</span>
+<span class="nc" id="L70">            throw ex;  // Re-throw for controller to handle</span>
+        }
+    }
+
+    /**
+     * Validates a refresh token string and updates its last-used timestamp.
+     * Returns Optional.empty() if token is invalid, expired, or not found.
+     */
+    public Optional&lt;RefreshToken&gt; validateAndRefresh(String tokenString) {
+        // Early validation: reject null or empty tokens
+<span class="fc bfc" id="L80" title="All 4 branches covered.">        if (tokenString == null || tokenString.isBlank()) {</span>
+<span class="fc" id="L81">            logger.debug(&quot;Refresh token validation failed: tokenString is blank&quot;);</span>
+<span class="fc" id="L82">            return Optional.empty();</span>
+        }
+
+        // Security: normalize token string (trim whitespace that might come from JSON)
+<span class="fc" id="L86">        String rawToken = tokenString;</span>
+<span class="fc" id="L87">        String normalizedToken = tokenString.trim();</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        if (!rawToken.equals(normalizedToken)) {</span>
+<span class="fc" id="L89">            logger.debug(</span>
+                    &quot;Refresh token had surrounding whitespace (rawLen={}, trimmedLen={})&quot;,
+<span class="fc" id="L91">                    rawToken.length(),</span>
+<span class="fc" id="L92">                    normalizedToken.length());</span>
+        }
+
+<span class="fc" id="L95">        logger.debug(&quot;Validating refresh token (len={})&quot;, normalizedToken.length());</span>
+
+        // Look up token in database
+<span class="fc" id="L98">        Optional&lt;RefreshToken&gt; found = tokenRepository.findByToken(normalizedToken);</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (found.isEmpty()) {</span>
+            // Security: don't log actual token value in production
+<span class="fc" id="L101">            logger.warn(&quot;Refresh token not found in DB (len={})&quot;, normalizedToken.length());</span>
+<span class="fc" id="L102">            return Optional.empty();</span>
+        }
+
+        // Validate token using Optional functional programming pattern
+<span class="fc" id="L106">        return found</span>
+<span class="fc" id="L107">                .filter(token -&gt; {</span>
+                    // Check if token has expired
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                    boolean ok = !token.isExpired();</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">                    if (!ok) {</span>
+<span class="fc" id="L111">                        logger.debug(&quot;Refresh token expired: token={}, expiryDate={}&quot;, </span>
+<span class="fc" id="L112">                                token.getToken(), token.getExpiryDate());</span>
+                    }
+<span class="fc" id="L114">                    return ok;</span>
+                })
+<span class="fc" id="L116">                .map(token -&gt; {</span>
+                    // Update last-used timestamp and persist
+<span class="fc" id="L118">                    token.setLastUsedAt(Instant.now());</span>
+<span class="fc" id="L119">                    return tokenRepository.save(token);  // Save updated timestamp</span>
+                });
+    }
+
+    /**
+     * Revokes (deletes) a specific token by its string value.
+     * Used when user logs out or token is compromised.
+     */
+    public void revokeToken(String tokenString) {
+<span class="fc" id="L128">        tokenRepository.findByToken(tokenString)</span>
+<span class="fc" id="L129">                .ifPresent(tokenRepository::delete);  // Delete if found</span>
+<span class="fc" id="L130">    }</span>
+
+    /**
+     * Revokes ALL tokens for a specific user.
+     * Used when user changes password or account is compromised.
+     */
+    public void revokeAllUserTokens(UUID userId) {
+<span class="fc" id="L137">        tokenRepository.deleteAllByUserId(userId);  // Batch delete</span>
+<span class="fc" id="L138">    }</span>
+
+    /**
+     * Scheduled job: runs daily at 2:00 AM to clean up expired tokens.
+     * Prevents database bloat from expired tokens.
+     */
+    @Scheduled(cron = &quot;0 0 2 * * *&quot;)  // Cron expression: seconds minutes hours day month weekday
+    public void deleteExpiredTokens() {
+        // Delete all tokens with expiry date before current time
+<span class="fc" id="L147">        tokenRepository.deleteByExpiryDateBefore(Instant.now());</span>
+<span class="fc" id="L148">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

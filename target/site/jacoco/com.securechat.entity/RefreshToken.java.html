@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefreshToken.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.entity</a> &gt; <span class="el_source">RefreshToken.java</span></div><h1>RefreshToken.java</h1><pre class="source lang-java linenums">package com.securechat.entity;
+
+import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;refresh_tokens&quot;, indexes = {
+    @Index(name = &quot;idx_refresh_token&quot;, columnList = &quot;token&quot;), // Optimized for token lookup during refresh
+    @Index(name = &quot;idx_refresh_user_id&quot;, columnList = &quot;user_id&quot;), 
+    @Index(name = &quot;idx_refresh_expiry_date&quot;, columnList = &quot;expiry_date&quot;) // Optimized for cleanup of expired tokens
+})
+<span class="fc" id="L13">public class RefreshToken {</span>
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id; // Primary key - unique identifier for each refresh token record
+
+    @Column(nullable = false, unique = true, length = 512)
+    private String token; // The actual JWT refresh token (unique, max 512 chars)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;user_id&quot;, nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private User user; // User associated with this refresh token (lazy loaded for performance)
+
+    @Column(name = &quot;expiry_date&quot;, nullable = false)
+    private Instant expiryDate; // When this token expires (using Instant for precision)
+
+    @Column(name = &quot;created_at&quot;, nullable = false)
+    private Instant createdAt; 
+
+    @Column(name = &quot;last_used_at&quot;)
+    private Instant lastUsedAt; // Last time this token was used (null if never used)
+
+    @Column(name = &quot;ip_address&quot;, length = 45)
+    private String ipAddress; // IP address where token was created (supports IPv4 and IPv6)
+
+    @Column(name = &quot;user_agent&quot;, length = 512)
+    private String userAgent; // Browser/device info where token was created (max 512 chars)
+
+    // JPA lifecycle callback - executes before entity is persisted to database
+    @PrePersist
+    protected void onCreate() {
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (createdAt == null) {</span>
+<span class="nc" id="L46">            createdAt = Instant.now(); // Auto-set creation timestamp if not provided</span>
+        }
+<span class="nc" id="L48">    }</span>
+
+    /**
+     * Checks if the refresh token has expired.
+     * @return true if token is expired, false if still valid
+     */
+    public boolean isExpired() {
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (expiryDate == null) {</span>
+<span class="fc" id="L56">            return false; </span>
+        }
+        // Security: Treat &quot;now&quot; as expired for safety (token expires at the moment it reaches expiry)
+        // Uses !now.isBefore(expiryDate) instead of now.isAfter(expiryDate) to include exact expiry time
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        return !Instant.now().isBefore(expiryDate);</span>
+    }
+
+    // Getters and Setters
+<span class="fc" id="L64">    public UUID getId() { return id; }</span>
+<span class="fc" id="L65">    public void setId(UUID id) { this.id = id; }</span>
+
+<span class="fc" id="L67">    public String getToken() { return token; }</span>
+<span class="fc" id="L68">    public void setToken(String token) { this.token = token; }</span>
+
+<span class="fc" id="L70">    public User getUser() { return user; }</span>
+<span class="fc" id="L71">    public void setUser(User user) { this.user = user; }</span>
+
+<span class="fc" id="L73">    public Instant getExpiryDate() { return expiryDate; }</span>
+<span class="fc" id="L74">    public void setExpiryDate(Instant expiryDate) { this.expiryDate = expiryDate; }</span>
+
+<span class="fc" id="L76">    public Instant getCreatedAt() { return createdAt; }</span>
+<span class="fc" id="L77">    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }</span>
+
+<span class="fc" id="L79">    public Instant getLastUsedAt() { return lastUsedAt; }</span>
+<span class="fc" id="L80">    public void setLastUsedAt(Instant lastUsedAt) { this.lastUsedAt = lastUsedAt; }</span>
+
+<span class="fc" id="L82">    public String getIpAddress() { return ipAddress; }</span>
+<span class="fc" id="L83">    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }</span>
+
+<span class="fc" id="L85">    public String getUserAgent() { return userAgent; }</span>
+<span class="fc" id="L86">    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

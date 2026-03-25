@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.util</a> &gt; <span class="el_source">AuthUtil.java</span></div><h1>AuthUtil.java</h1><pre class="source lang-java linenums">package com.securechat.util;
+
+import com.securechat.entity.User;
+import com.securechat.service.UserSyncService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.stereotype.Component;
+
+import java.security.Principal;
+import java.util.UUID;
+
+/**
+ * Centralized utility for authentication and user lookup.
+ * Provides safe, consistent methods for extracting user information from JWT tokens.
+ */
+@Component
+public class AuthUtil {
+
+<span class="fc" id="L24">    private static final Logger logger = LoggerFactory.getLogger(AuthUtil.class);</span>
+
+    private final UserSyncService userSyncService;
+
+<span class="fc" id="L28">    public AuthUtil(UserSyncService userSyncService) {</span>
+<span class="fc" id="L29">        this.userSyncService = userSyncService;</span>
+<span class="fc" id="L30">    }</span>
+
+    /**
+     * Get the current user ID from the principal.
+     * Safely parses the UUID and throws meaningful exceptions if invalid.
+     *
+     * @param principal the security principal
+     * @return the user ID as UUID
+     * @throws AuthenticationCredentialsNotFoundException if principal is null
+     * @throws BadCredentialsException if principal name is not a valid UUID
+     */
+    public UUID getCurrentUserId(Principal principal) {
+<span class="fc bfc" id="L42" title="All 2 branches covered.">        if (principal == null) {</span>
+<span class="fc" id="L43">            logger.error(&quot;Authentication failed: No authenticated user (principal is null)&quot;);</span>
+<span class="fc" id="L44">            throw new AuthenticationCredentialsNotFoundException(&quot;No authenticated user&quot;);</span>
+        }
+
+<span class="fc" id="L47">        String name = principal.getName();</span>
+<span class="fc bfc" id="L48" title="All 4 branches covered.">        if (name == null || name.trim().isEmpty()) {</span>
+<span class="fc" id="L49">            logger.error(&quot;Authentication failed: Principal name is null or empty&quot;);</span>
+<span class="fc" id="L50">            throw new AuthenticationCredentialsNotFoundException(&quot;Principal name is null or empty&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L54">            UUID uuid = UUID.fromString(name);</span>
+<span class="fc" id="L55">            logger.debug(&quot;Successfully parsed UUID from principal: {}&quot;, uuid);</span>
+<span class="fc" id="L56">            return uuid;</span>
+<span class="fc" id="L57">        } catch (IllegalArgumentException e) {</span>
+<span class="fc" id="L58">            logger.error(&quot;Authentication failed: Invalid UUID format in principal name: '{}'&quot;, name);</span>
+<span class="fc" id="L59">            throw new BadCredentialsException(&quot;Invalid user ID format: &quot; + name, e);</span>
+        }
+    }
+
+    /**
+     * Get the current user entity from the authentication.
+     * Safely extracts user ID from JWT and fetches the user from the database.
+     *
+     * @param authentication the Spring Security authentication object
+     * @return 
+     * @throws AuthenticationCredentialsNotFoundException if authentication is null or not a JWT token
+     * @throws BadCredentialsException 
+     * @throws RuntimeException if user is not found in the database
+     */
+    public User getAuthenticatedUser(Authentication authentication) {
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        if (authentication == null) {</span>
+<span class="fc" id="L75">            logger.error(&quot;Authentication failed: No authentication object&quot;);</span>
+<span class="fc" id="L76">            throw new AuthenticationCredentialsNotFoundException(&quot;No authentication provided&quot;);</span>
+        }
+
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        if (!(authentication instanceof JwtAuthenticationToken)) {</span>
+<span class="fc" id="L80">            logger.error(&quot;Authentication failed: Not a JWT token, type: {}&quot;, authentication.getClass().getName());</span>
+<span class="fc" id="L81">            throw new AuthenticationCredentialsNotFoundException(&quot;Authentication is not a JWT token&quot;);</span>
+        }
+
+<span class="fc" id="L84">        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;</span>
+<span class="fc" id="L85">        Jwt jwt = jwtAuth.getToken();</span>
+
+        // Extract user ID from JWT subject claim (set by SecurityConfig.setPrincipalClaimName(&quot;sub&quot;))
+<span class="fc" id="L88">        String userId = jwt.getSubject();</span>
+<span class="pc bpc" id="L89" title="1 of 4 branches missed.">        if (userId == null || userId.trim().isEmpty()) {</span>
+<span class="fc" id="L90">            logger.error(&quot;Authentication failed: JWT subject claim is null or empty&quot;);</span>
+<span class="fc" id="L91">            throw new BadCredentialsException(&quot;JWT subject claim is null or empty&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L95">            UUID uuid = UUID.fromString(userId);</span>
+<span class="fc" id="L96">            logger.debug(&quot;Extracted UUID from JWT subject: {}&quot;, uuid);</span>
+
+<span class="fc" id="L98">            User user = userSyncService.getOrCreateUser(jwt);</span>
+
+<span class="fc" id="L100">            logger.debug(&quot;Successfully retrieved user: {}&quot;, user.getUsername());</span>
+<span class="fc" id="L101">            return user;</span>
+<span class="fc" id="L102">        } catch (IllegalArgumentException e) {</span>
+<span class="fc" id="L103">            logger.error(&quot;Authentication failed: JWT subject is not a valid UUID: '{}'&quot;, userId);</span>
+<span class="fc" id="L104">            throw new BadCredentialsException(&quot;JWT subject is not a valid UUID: &quot; + userId, e);</span>
+        }
+    }
+
+    /**
+     * Check if the authenticated user has a specific role/authority.
+     *
+     * @param authentication the Spring Security authentication object
+     * @param role the role to check (e.g., &quot;ROLE_ADMIN&quot; or &quot;ADMIN&quot;)
+     * @return 
+     */
+    public boolean hasRole(Authentication authentication, String role) {
+<span class="fc bfc" id="L116" title="All 4 branches covered.">        if (authentication == null || authentication.getAuthorities() == null) {</span>
+<span class="fc" id="L117">            return false;</span>
+        }
+
+<span class="fc" id="L120">        return authentication.getAuthorities().stream()</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">                .anyMatch(authority -&gt; authority.getAuthority().equals(role) ||</span>
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">                                     authority.getAuthority().equals(&quot;ROLE_&quot; + role));</span>
+    }
+
+    /**
+     * Check if the authenticated user has the ADMIN role.
+     *
+     * @param authentication the Spring Security authentication object
+     * @return true if the user is an admin, false otherwise
+     */
+    public boolean isAdmin(Authentication authentication) {
+<span class="fc" id="L132">        return hasRole(authentication, &quot;ADMIN&quot;);</span>
+    }
+
+    /**
+     * Get the username from the JWT token.
+     *
+     * @param authentication the Spring Security authentication object
+     * @return the username, or null if not found
+     */
+    public String getUsername(Authentication authentication) {
+<span class="fc bfc" id="L142" title="All 4 branches covered.">        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {</span>
+<span class="fc" id="L143">            return null;</span>
+        }
+
+<span class="fc" id="L146">        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;</span>
+<span class="fc" id="L147">        Jwt jwt = jwtAuth.getToken();</span>
+
+        // Try to get username from preferred_username claim
+<span class="fc" id="L150">        String username = jwt.getClaimAsString(&quot;preferred_username&quot;);</span>
+<span class="pc bpc" id="L151" title="1 of 4 branches missed.">        if (username != null &amp;&amp; !username.trim().isEmpty()) {</span>
+<span class="fc" id="L152">            return username;</span>
+        }
+
+        // Fallback to email claim
+<span class="fc" id="L156">        String email = jwt.getClaimAsString(&quot;email&quot;);</span>
+<span class="pc bpc" id="L157" title="1 of 4 branches missed.">        if (email != null &amp;&amp; !email.trim().isEmpty()) {</span>
+<span class="fc" id="L158">            return email;</span>
+        }
+
+<span class="fc" id="L161">        return null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

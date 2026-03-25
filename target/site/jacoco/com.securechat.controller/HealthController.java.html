@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HealthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.controller</a> &gt; <span class="el_source">HealthController.java</span></div><h1>HealthController.java</h1><pre class="source lang-java linenums">package com.securechat.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Health check endpoint for SecureChat API.
+ * Provides quick verification that the service is running and authentication is
+ * configured.
+ * Returns immediately without requiring authentication, making it suitable for
+ * load balancers and readiness probes.
+ */
+@RestController
+@RequestMapping(&quot;/api/health&quot;)
+<span class="fc" id="L21">public class HealthController {</span>
+
+    @Value(&quot;${spring.application.name:SecureChat API}&quot;)
+    private String applicationName;
+
+    /**
+     * Simple health check endpoint.
+     * 
+     * @return Health status object with service information
+     */
+    @GetMapping
+    public ResponseEntity&lt;Map&lt;String, String&gt;&gt; health() {
+<span class="nc" id="L33">        Map&lt;String, String&gt; health = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L34">        health.put(&quot;status&quot;, &quot;UP&quot;);</span>
+<span class="nc" id="L35">        health.put(&quot;service&quot;, applicationName);</span>
+<span class="nc" id="L36">        health.put(&quot;mode&quot;, &quot;Keycloak-only&quot;);</span>
+<span class="nc" id="L37">        health.put(&quot;authProvider&quot;, &quot;Keycloak (OAuth2)&quot;);</span>
+<span class="nc" id="L38">        health.put(&quot;database&quot;, &quot;PostgreSQL&quot;);</span>
+<span class="nc" id="L39">        health.put(&quot;version&quot;, &quot;1.0.0-keycloak-fix&quot;);</span>
+
+<span class="nc" id="L41">        return ResponseEntity.ok(health);</span>
+    }
+
+    /**
+     * Quick status without application.name overhead.
+     * Alternative minimal endpoint for simple monitoring.
+     * 
+     * @return Minimal up status
+     */
+    @GetMapping(&quot;/basic&quot;)
+    public ResponseEntity&lt;Map&lt;String, String&gt;&gt; basicHealth() {
+<span class="nc" id="L52">        Map&lt;String, String&gt; status = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L53">        status.put(&quot;status&quot;, &quot;UP&quot;);</span>
+<span class="nc" id="L54">        status.put(&quot;timestamp&quot;, String.valueOf(System.currentTimeMillis()));</span>
+
+<span class="nc" id="L56">        return ResponseEntity.ok(status);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

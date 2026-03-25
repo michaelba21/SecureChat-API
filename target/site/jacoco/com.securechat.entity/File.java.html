@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>File.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.entity</a> &gt; <span class="el_source">File.java</span></div><h1>File.java</h1><pre class="source lang-java linenums">package com.securechat.entity;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.UUID;
+@Entity
+@Table(name = &quot;files&quot;)
+<span class="fc" id="L10">public class File {</span>
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id; // Primary key - automatically generated UUID
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = &quot;uploader_id&quot;, nullable = false)
+  @com.fasterxml.jackson.annotation.JsonIgnore // Prevents JSON serialization of the uploader object
+  private User uploader; 
+
+  @Column(nullable = false)
+  private String filename; // Original name of the uploaded file
+
+  @Column(name = &quot;file_path&quot;, nullable = false, length = 500)
+  private String filePath; // Storage path on server (max 500 characters)
+
+  @Column(name = &quot;file_size&quot;, nullable = false)
+  private Long fileSize; 
+
+  @Column(name = &quot;mime_type&quot;, nullable = false)
+  private String mimeType; // Content type (e.g., image/jpeg, application/pdf)
+
+  @Column(name = &quot;uploaded_at&quot;, nullable = false)
+  private LocalDateTime uploadedAt; // Timestamp when file was uploaded
+
+<span class="fc" id="L36">  @Column(name = &quot;is_public&quot;, nullable = false)</span>
+<span class="fc" id="L37">  private Boolean isPublic = false; // Visibility flag - false means only authorized users can access</span>
+
+  @Column(name = &quot;deleted_at&quot;)
+  private LocalDateTime deletedAt; 
+
+  @Column(name = &quot;deleted_by&quot;)
+  private UUID deletedBy; 
+
+  // JPA lifecycle callback - executes before entity is persisted to database
+  @PrePersist
+  protected void onCreate() {
+    // Auto-set upload timestamp if not already provided
+<span class="nc bnc" id="L49" title="All 2 branches missed.">    if (uploadedAt == null) {</span>
+<span class="nc" id="L50">      uploadedAt = LocalDateTime.now();</span>
+    }
+<span class="nc" id="L52">  }</span>
+
+  // Manual Getters and Setters with nullability annotations
+<span class="fc" id="L55">  public UUID getId() { return id; }</span>
+<span class="fc" id="L56">  public void setId(@Nullable UUID id) { this.id = id; } // ID can be null before saving</span>
+
+<span class="fc" id="L58">  public User getUploader() { return uploader; }</span>
+<span class="fc" id="L59">  public void setUploader(@Nullable User uploader) { this.uploader = uploader; }</span>
+
+  @Nonnull
+<span class="fc" id="L62">  public String getFilename() { return filename; }</span>
+<span class="fc" id="L63">  public void setFilename(@Nullable String filename) { this.filename = filename; }</span>
+
+  @Nonnull
+<span class="fc" id="L66">  public String getFilePath() { return filePath; }</span>
+<span class="fc" id="L67">  public void setFilePath(@Nullable String filePath) { this.filePath = filePath; }</span>
+
+  @Nonnull
+<span class="fc" id="L70">  public Long getFileSize() { return fileSize; }</span>
+<span class="fc" id="L71">  public void setFileSize(@Nullable Long fileSize) { this.fileSize = fileSize; }</span>
+
+  @Nonnull
+<span class="fc" id="L74">  public String getMimeType() { return mimeType; }</span>
+<span class="fc" id="L75">  public void setMimeType(@Nullable String mimeType) { this.mimeType = mimeType; }</span>
+
+  @Nonnull
+<span class="fc" id="L78">  public LocalDateTime getUploadedAt() { return uploadedAt; }</span>
+<span class="fc" id="L79">  public void setUploadedAt(@Nullable LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }</span>
+
+  @Nullable
+<span class="fc" id="L82">  public Boolean getIsPublic() { return isPublic; }</span>
+<span class="fc" id="L83">  public void setIsPublic(@Nullable Boolean isPublic) { this.isPublic = isPublic; }</span>
+
+  @Nullable
+<span class="nc" id="L86">  public LocalDateTime getDeletedAt() { return deletedAt; }</span>
+<span class="nc" id="L87">  public void setDeletedAt(@Nullable LocalDateTime deletedAt) { this.deletedAt = deletedAt; }</span>
+
+  @Nullable
+<span class="nc" id="L90">  public UUID getDeletedBy() { return deletedBy; }</span>
+<span class="nc" id="L91">  public void setDeletedBy(@Nullable UUID deletedBy) { this.deletedBy = deletedBy; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

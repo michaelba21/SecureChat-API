@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfigOauth.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.config</a> &gt; <span class="el_source">SecurityConfigOauth.java</span></div><h1>SecurityConfigOauth.java</h1><pre class="source lang-java linenums">package com.securechat.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+/**
+ *  OAuth2/Keycloak security configuration for the API.
+ *
+ */
+@Configuration
+@Profile(&quot;legacy-oauth2&quot;)
+<span class="nc" id="L38">public class SecurityConfigOauth {</span>
+	@Value(&quot;${keycloak.client-id:securechat-backend}&quot;)
+	String clientId;
+
+	@Value(&quot;${spring.security.oauth2.resourceserver.jwt.audiences:securechat-backend}&quot;)
+	String audience;
+
+	@Value(&quot;${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:9090/realms/securechat}&quot;)
+	String issuer;
+// CORS configuration to allow cross-origin requests
+	@Bean
+	UrlBasedCorsConfigurationSource corsConfigurationSource() {
+<span class="nc" id="L50">		CorsConfiguration corsConfiguration = new CorsConfiguration();</span>
+<span class="nc" id="L51">		corsConfiguration.setAllowedOrigins(List.of(&quot;*&quot;));</span>
+<span class="nc" id="L52">		corsConfiguration.setAllowedMethods(List.of(&quot;*&quot;));</span>
+<span class="nc" id="L53">		corsConfiguration.setAllowedHeaders(List.of(&quot;*&quot;));</span>
+<span class="nc" id="L54">		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();</span>
+<span class="nc" id="L55">		source.registerCorsConfiguration(&quot;/**&quot;, corsConfiguration);</span>
+<span class="nc" id="L56">		return source;</span>
+	}
+// Main security configuration bean
+	@Bean
+	public SecurityFilterChain config(HttpSecurity http) throws Exception {
+<span class="nc" id="L61">		return http</span>
+<span class="nc" id="L62">				.httpBasic(Customizer.withDefaults())</span>
+<span class="nc" id="L63">				.cors(cors -&gt; cors.configurationSource(corsConfigurationSource()))</span>
+<span class="nc" id="L64">				.csrf(csrf -&gt; csrf.disable())</span>
+<span class="nc" id="L65">				.sessionManagement(sm -&gt; sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="nc" id="L66">				.oauth2ResourceServer(oauth2 -&gt; oauth2</span>
+<span class="nc" id="L67">						.jwt(jwt -&gt; jwt</span>
+<span class="nc" id="L68">								.jwtAuthenticationConverter(jwtAuthenticationConverter())</span>
+<span class="nc" id="L69">								.decoder(jwtDecoder())))</span>
+<span class="nc" id="L70">				.authorizeHttpRequests(auth -&gt; auth</span>
+<span class="nc" id="L71">						.requestMatchers(&quot;/api/security/public&quot;).permitAll()</span>
+<span class="nc" id="L72">						.requestMatchers(HttpMethod.GET, &quot;/api/security/admin&quot;).hasRole(&quot;ADMIN&quot;)</span>
+<span class="nc" id="L73">						.requestMatchers(&quot;/api/security/private&quot;, &quot;/api/security/hello&quot;).authenticated()</span>
+<span class="nc" id="L74">						.anyRequest().authenticated())</span>
+<span class="nc" id="L75">				.build();</span>
+	}
+// Custom JWT decoder with issuer and audience validation
+	public JwtDecoder jwtDecoder() {
+<span class="nc" id="L79">		NimbusJwtDecoder jwtDecoder = JwtDecoders.fromOidcIssuerLocation(issuer);</span>
+
+<span class="nc" id="L81">		OAuth2TokenValidator&lt;Jwt&gt; audienceValidator = new JwtClaimValidator&lt;List&lt;String&gt;&gt;(</span>
+			&quot;aud&quot;,
+<span class="nc bnc" id="L83" title="All 4 branches missed.">			aud -&gt; aud != null &amp;&amp; aud.contains(audience));</span>
+			// Combine issuer validation with audience validation
+<span class="nc" id="L85">		OAuth2TokenValidator&lt;Jwt&gt; withIssuer = JwtValidators.createDefaultWithIssuer(issuer);</span>
+<span class="nc" id="L86">		OAuth2TokenValidator&lt;Jwt&gt; withAudience = new DelegatingOAuth2TokenValidator&lt;&gt;(withIssuer, audienceValidator);</span>
+<span class="nc" id="L87">		jwtDecoder.setJwtValidator(withAudience);</span>
+<span class="nc" id="L88">		return jwtDecoder;</span>
+	}
+
+	public JwtAuthenticationConverter jwtAuthenticationConverter() {
+
+<span class="nc" id="L93">		JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();</span>
+<span class="nc" id="L94">		jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new Converter&lt;&gt;() {</span>
+			@Override
+			public Collection&lt;GrantedAuthority&gt; convert(Jwt source) {
+<span class="nc" id="L97">				Collection&lt;GrantedAuthority&gt; grantedAuthorities = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">				for (String authority : getAuthorities(source)) {</span>
+<span class="nc" id="L99">					grantedAuthorities.add(new SimpleGrantedAuthority(authority));</span>
+<span class="nc" id="L100">				}</span>
+<span class="nc" id="L101">				return grantedAuthorities;</span>
+			}
+	        // Extract roles from JWT token
+			// Keycloak stores roles in resource_access.{clientId}.roles or realm_access.roles
+			@SuppressWarnings(&quot;unchecked&quot;)
+			private List&lt;String&gt; getAuthorities(Jwt jwt) {
+<span class="nc" id="L107">				Map&lt;String, Object&gt; resourceAcces = jwt.getClaim(&quot;resource_access&quot;);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">				if (resourceAcces != null) {</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">					if (resourceAcces.get(clientId) instanceof Map&lt;?, ?&gt;) {</span>
+<span class="nc" id="L110">						Map&lt;String, Object&gt; client = (Map&lt;String, Object&gt;) resourceAcces.get(clientId);</span>
+<span class="nc bnc" id="L111" title="All 4 branches missed.">						if (client != null &amp;&amp; client.containsKey(&quot;roles&quot;)) {</span>
+<span class="nc" id="L112">							return (List&lt;String&gt;) client.get(&quot;roles&quot;);</span>
+						}
+<span class="nc" id="L114">					} else {</span>
+						// Fall back to realm roles if client roles not found
+<span class="nc" id="L116">						Map&lt;String, Object&gt; realmAcces = jwt.getClaim(&quot;realm_access&quot;);</span>
+<span class="nc bnc" id="L117" title="All 4 branches missed.">						if (realmAcces != null &amp;&amp; realmAcces.containsKey(&quot;roles&quot;)) {</span>
+<span class="nc" id="L118">							return (List&lt;String&gt;) realmAcces.get(&quot;roles&quot;);</span>
+						}
+<span class="nc" id="L120">						return new ArrayList&lt;&gt;();</span>
+					}
+				}
+<span class="nc" id="L123">				return new ArrayList&lt;&gt;();</span>
+			}
+		});
+<span class="nc" id="L126">		return jwtAuthenticationConverter;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

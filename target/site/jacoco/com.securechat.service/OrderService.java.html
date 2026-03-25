@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.service</a> &gt; <span class="el_source">OrderService.java</span></div><h1>OrderService.java</h1><pre class="source lang-java linenums">package com.securechat.service;
+
+import com.securechat.dto.OrderDto;
+import com.securechat.model.Order;
+import com.securechat.repository.OrderRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service// Spring annotation: creates a singleton service bean for dependency injection
+public class OrderService {
+
+	private final OrderRepository orderRepos;
+// Constructor injection of OrderRepository (Spring provides the repository instance)
+<span class="fc" id="L18">	public OrderService(OrderRepository repos) {</span>
+<span class="fc" id="L19">		this.orderRepos = repos;</span>
+<span class="fc" id="L20">	}</span>
+// Create a new order from DTO and return the generated order ID
+	public int createOrder(OrderDto newOrderDto) {
+<span class="fc" id="L23">		Order o = new Order(newOrderDto.productname, newOrderDto.unitprice, newOrderDto.quantity);</span>
+
+<span class="fc" id="L25">		o = orderRepos.save(o);</span>
+
+<span class="fc" id="L27">		return o.getOrderid();</span>
+	}
+// Create a new order from DTO and return the generated order ID
+	public List&lt;OrderDto&gt; getOrders() {
+<span class="fc" id="L31">		List&lt;OrderDto&gt; orderDtoList = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">		for (Order o : orderRepos.findAll()) {</span>
+<span class="fc" id="L33">			orderDtoList.add(transferToDto(o));</span>
+<span class="fc" id="L34">		}</span>
+<span class="fc" id="L35">		return orderDtoList;</span>
+	}
+	// Retrieve a single order by ID, throw 404 if not found
+	public OrderDto getOrder(int orderid) {
+<span class="fc" id="L39">		Order o = orderRepos.findById(orderid)</span>
+<span class="fc" id="L40">				.orElseThrow(() -&gt; new ResponseStatusException(HttpStatus.NOT_FOUND, &quot;Order not found&quot;));</span>
+<span class="fc" id="L41">		return transferToDto(o);</span>
+	}
+	// Calculate total amount for an order by ID, throw 404 if order not found
+	public double getAmount(int orderid) {
+<span class="fc" id="L45">		Order o = orderRepos.findById(orderid)</span>
+<span class="fc" id="L46">				.orElseThrow(() -&gt; new ResponseStatusException(HttpStatus.NOT_FOUND, &quot;Order not found&quot;));</span>
+<span class="fc" id="L47">		return o.calculateAmount();</span>
+	}
+// Private helper method: converts Order entity to OrderDto (Data Transfer Object)
+	private static OrderDto transferToDto(Order o) {
+<span class="fc" id="L51">		OrderDto odto = new OrderDto();</span>
+<span class="fc" id="L52">		odto.orderid = o.getOrderid();</span>
+<span class="fc" id="L53">		odto.productname = o.getProductname();</span>
+<span class="fc" id="L54">		odto.unitprice = o.getUnitprice();</span>
+<span class="fc" id="L55">		odto.quantity = o.getQuantity();</span>
+<span class="fc" id="L56">		return odto;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

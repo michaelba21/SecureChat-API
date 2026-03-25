@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.service</a> &gt; <span class="el_source">UserService.java</span></div><h1>UserService.java</h1><pre class="source lang-java linenums">package com.securechat.service;
+import com.securechat.entity.User;
+import com.securechat.repository.UserRepository;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@Validated  // Enables method-level validation with @NotNull annotations
+<span class="fc" id="L13">public class UserService {</span>
+
+  @Autowired
+  protected UserRepository userRepository;  // Data access layer for User entities
+
+  // Retrieve all users from the database
+  @NotNull
+  public List&lt;User&gt; getAllUsers() {
+<span class="fc" id="L21">    return userRepository.findAll();  // Returns empty list if no users exist</span>
+  }
+
+  // Retrieve a single user by their unique ID
+  @NotNull
+  public User getUserById(@NotNull UUID id) {
+<span class="fc bfc" id="L27" title="All 2 branches covered.">    if (id == null) {</span>
+<span class="fc" id="L28">      throw new IllegalArgumentException(&quot;User ID cannot be null&quot;);</span>
+    }
+<span class="fc" id="L30">    return userRepository.findById(id)</span>
+<span class="fc" id="L31">        .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;));  // Throws if user doesn't exist</span>
+  }
+
+  // Full update of a user - replaces all updatable fields with provided values
+  @NotNull
+  @SuppressWarnings(&quot;null&quot;)  // Suppresses null warnings for the method (from @NotNull return)
+  public User updateUser(@NotNull UUID id, @NotNull User userDetails) {
+    // Validate input parameters
+<span class="fc bfc" id="L39" title="All 2 branches covered.">    if (id == null) {</span>
+<span class="fc" id="L40">      throw new IllegalArgumentException(&quot;User ID cannot be null&quot;);</span>
+    }
+<span class="fc bfc" id="L42" title="All 2 branches covered.">    if (userDetails == null) {</span>
+<span class="fc" id="L43">      throw new IllegalArgumentException(&quot;User details cannot be null&quot;);</span>
+    }
+    
+    // Retrieve existing user from database
+<span class="fc" id="L47">    User user = getUserById(id);</span>
+    
+    // Conditional field updates - only update if new value is not null
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">    if (userDetails.getUsername() != null) {</span>
+<span class="fc" id="L51">      user.setUsername(userDetails.getUsername());</span>
+    }
+<span class="fc bfc" id="L53" title="All 2 branches covered.">    if (userDetails.getEmail() != null) {</span>
+<span class="fc" id="L54">      user.setEmail(userDetails.getEmail());</span>
+    }
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">    if (userDetails.getBio() != null) {</span>
+<span class="nc" id="L57">      user.setBio(userDetails.getBio());</span>
+    }
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">    if (userDetails.getAvatarUrl() != null) {</span>
+<span class="nc" id="L60">      user.setAvatarUrl(userDetails.getAvatarUrl());</span>
+    }
+    
+    // Persist changes and return updated user
+<span class="fc" id="L64">    return userRepository.save(user);</span>
+  }
+
+  // Search users by username (case-insensitive partial match)
+  @NotNull
+  public List&lt;User&gt; searchUsers(@NotNull String query) {
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    if (query == null) {</span>
+<span class="fc" id="L71">      throw new IllegalArgumentException(&quot;Search query cannot be null&quot;);</span>
+    }
+    // Performance/security: prevent overly broad searches with short queries
+<span class="fc bfc" id="L74" title="All 2 branches covered.">    if (query.length() &lt; 3) {</span>
+<span class="fc" id="L75">      throw new RuntimeException(&quot;Search query must be at least 3 characters&quot;);</span>
+    }
+<span class="fc" id="L77">    return userRepository.findByUsernameContainingIgnoreCase(query);  // Returns empty list if no matches</span>
+  }
+
+  // Partial update using a Map - allows updating specific fields without sending entire user object
+  @NotNull
+  public User partialUpdateUser(@NotNull UUID id, @NotNull java.util.Map&lt;String, Object&gt; updates) {
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">    if (id == null) {</span>
+<span class="nc" id="L84">      throw new IllegalArgumentException(&quot;User ID cannot be null&quot;);</span>
+    }
+<span class="fc bfc" id="L86" title="All 4 branches covered.">    if (updates == null || updates.isEmpty()) {</span>
+<span class="fc" id="L87">      throw new IllegalArgumentException(&quot;Updates cannot be null or empty&quot;);</span>
+    }
+    
+    // Retrieve existing user
+<span class="fc" id="L91">    User user = getUserById(id);</span>
+    
+    // Update only the fields present in the map
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">    if (updates.containsKey(&quot;username&quot;)) {</span>
+<span class="fc" id="L95">      user.setUsername((String) updates.get(&quot;username&quot;));  // Type casting - assumes String</span>
+    }
+<span class="fc bfc" id="L97" title="All 2 branches covered.">    if (updates.containsKey(&quot;email&quot;)) {</span>
+<span class="fc" id="L98">      user.setEmail((String) updates.get(&quot;email&quot;));</span>
+    }
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">    if (updates.containsKey(&quot;bio&quot;)) {</span>
+<span class="nc" id="L101">      user.setBio((String) updates.get(&quot;bio&quot;));</span>
+    }
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">    if (updates.containsKey(&quot;avatarUrl&quot;)) {</span>
+<span class="nc" id="L104">      user.setAvatarUrl((String) updates.get(&quot;avatarUrl&quot;));</span>
+    }
+    
+<span class="fc" id="L107">    return userRepository.save(user);</span>
+  }
+
+  // Update user roles - replaces entire roles set (used for admin role management)
+  @NotNull
+  public User updateUserRoles(@NotNull UUID id, @NotNull java.util.Set&lt;User.UserRole&gt; roles) {
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">    if (id == null) {</span>
+<span class="nc" id="L114">      throw new IllegalArgumentException(&quot;User ID cannot be null&quot;);</span>
+    }
+<span class="fc bfc" id="L116" title="All 4 branches covered.">    if (roles == null || roles.isEmpty()) {</span>
+<span class="fc" id="L117">      throw new IllegalArgumentException(&quot;Roles cannot be null or empty&quot;);</span>
+    }
+    
+<span class="fc" id="L120">    User user = getUserById(id);</span>
+<span class="fc" id="L121">    user.setRoles(roles);  // Replace all existing roles with new set</span>
+<span class="fc" id="L122">    return userRepository.save(user);</span>
+  }
+
+  // Soft delete - marks user as inactive instead of physical deletion
+  public void deleteUser(UUID id) {
+<span class="fc" id="L127">    User user = getUserById(id);</span>
+<span class="fc" id="L128">    user.setIsActive(false);  // Soft delete flag</span>
+<span class="fc" id="L129">    userRepository.save(user);  // Persist inactive status</span>
+<span class="fc" id="L130">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

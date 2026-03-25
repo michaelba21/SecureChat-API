@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MessageService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.service</a> &gt; <span class="el_source">MessageService.java</span></div><h1>MessageService.java</h1><pre class="source lang-java linenums">package com.securechat.service;
+import com.securechat.dto.MessageListDto;
+import com.securechat.entity.ChatRoom;
+import com.securechat.entity.Message;
+import com.securechat.entity.User;
+import com.securechat.repository.ChatRoomMemberRepository;
+import com.securechat.repository.ChatRoomRepository;
+import com.securechat.repository.MessageRepository;
+import com.securechat.repository.UserRepository;
+import com.securechat.util.InputSanitizer; 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Service for message operations.
+ *
+ * Implements both:
+ * 1. Message sending with validation
+ * 2. Polling for new messages
+ */
+@Service
+@RequiredArgsConstructor 
+@Transactional  // All methods run within a database transaction
+<span class="fc" id="L35">@Slf4j  // Lombok: provides logger instance</span>
+public class MessageService {
+
+    // Repositories for database operations
+    private final MessageRepository messageRepository;
+    private final UserRepository userRepository;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatRoomMemberRepository chatRoomMemberRepository; // For membership validation
+    private final InputSanitizer inputSanitizer;  // HTML/script sanitization utility
+    private final MessageStreamService messageStreamService;  // For real-time message streaming
+
+    // Get a single message as DTO (Data Transfer Object) by ID
+    public Optional&lt;MessageListDto&gt; getMessageDtoById(UUID id) {
+<span class="nc" id="L48">        return messageRepository.findMessageDtoById(id);</span>
+    }
+
+    // Overload method for string parameters (backward compatibility)
+    @Transactional
+    public Message createMessage(String chatRoomId, String userId, String content) {
+        // Convert string IDs to UUIDs and delegate to main method
+<span class="fc" id="L55">        return createMessage(UUID.fromString(chatRoomId), UUID.fromString(userId), content);</span>
+    }
+
+    // Main method to create and persist a new message
+    @Transactional
+    public Message createMessage(UUID chatRoomId, UUID userId, String content) {
+        try {
+<span class="fc" id="L62">            log.debug(&quot;Creating message: roomId={}, userId={}, content length={}&quot;,</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">                    chatRoomId, userId, content != null ? content.length() : 0);</span>
+
+            // Step 1: Validate all required inputs
+<span class="pc bpc" id="L66" title="3 of 6 branches missed.">            if (chatRoomId == null || userId == null || content == null) {</span>
+<span class="nc" id="L67">                log.error(&quot;Null parameter: chatRoomId={}, userId={}, content={}&quot;, chatRoomId, userId, content);</span>
+<span class="nc" id="L68">                throw new IllegalArgumentException(&quot;ChatRoomId, userId, and content cannot be null&quot;);</span>
+            }
+
+            // Step 2: Check if user is a member of the chat room (early validation)
+<span class="fc" id="L72">            boolean isMember = chatRoomMemberRepository</span>
+<span class="fc" id="L73">                    .existsByChatRoomIdAndUserId(chatRoomId, userId);</span>
+
+<span class="fc bfc" id="L75" title="All 2 branches covered.">            if (!isMember) {</span>
+<span class="fc" id="L76">                log.warn(&quot;User {} is not a member of chat room {}&quot;, userId, chatRoomId);</span>
+<span class="fc" id="L77">                throw new RuntimeException(&quot;User is not a member of this chat room&quot;);</span>
+            }
+
+            // Step 3: Retrieve user entity from database
+<span class="fc" id="L81">            User user = userRepository.findById(userId)</span>
+<span class="fc" id="L82">                    .orElseThrow(() -&gt; {</span>
+<span class="fc" id="L83">                        log.error(&quot;User not found: {}&quot;, userId);</span>
+<span class="fc" id="L84">                        return new RuntimeException(&quot;User not found: &quot; + userId);</span>
+                    });
+
+            // Step 4: Retrieve chat room entity from database
+<span class="fc" id="L88">            ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)</span>
+<span class="fc" id="L89">                    .orElseThrow(() -&gt; {</span>
+<span class="fc" id="L90">                        log.error(&quot;Chat room not found: {}&quot;, chatRoomId);</span>
+<span class="fc" id="L91">                        return new RuntimeException(&quot;Chat room not found: &quot; + chatRoomId);</span>
+                    });
+
+            // Step 5: Sanitize message content to prevent XSS attacks
+<span class="fc" id="L95">            String sanitizedContent = inputSanitizer.sanitize(content);</span>
+
+            // Step 6: Create and configure new message entity
+<span class="fc" id="L98">            Message message = new Message();</span>
+<span class="fc" id="L99">            message.setId(UUID.randomUUID());  // Generate unique ID</span>
+<span class="fc" id="L100">            message.setSender(user);  // Set sender reference</span>
+<span class="fc" id="L101">            message.setChatRoom(chatRoom); </span>
+<span class="fc" id="L102">            message.setUsername(user.getUsername());  // Store username for quick access</span>
+<span class="fc" id="L103">            message.setContent(sanitizedContent);  // Set sanitized content</span>
+<span class="fc" id="L104">            message.setMessageType(Message.MessageType.TEXT);  </span>
+<span class="fc" id="L105">            message.setTimestamp(LocalDateTime.now());  </span>
+<span class="fc" id="L106">            message.setIsDeleted(false);  // Not deleted initially</span>
+<span class="fc" id="L107">            message.setIsEdited(false);  </span>
+
+            // Step 7: Persist message to database
+<span class="fc" id="L110">            Message saved = messageRepository.save(message);</span>
+<span class="fc" id="L111">            log.debug(&quot;Message created successfully: id={}&quot;, saved.getId());</span>
+
+
+            // Real-time updates would typically be triggered from controller layer
+
+<span class="fc" id="L116">            return saved;  // Return saved entity</span>
+
+<span class="nc" id="L118">        } catch (IllegalArgumentException e) {</span>
+            // Re-throw validation errors
+<span class="nc" id="L120">            log.error(&quot;Invalid argument in createMessage: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L121">            throw e;</span>
+<span class="fc" id="L122">        } catch (RuntimeException e) {</span>
+            // Re-throw business logic errors
+<span class="fc" id="L124">            log.error(&quot;Runtime error in createMessage: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L125">            throw e;</span>
+<span class="nc" id="L126">        } catch (Exception e) {</span>
+            // Catch-all for unexpected errors
+<span class="nc" id="L128">            log.error(&quot;Unexpected error in createMessage: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L129">            throw new RuntimeException(&quot;Failed to create message: &quot; + e.getMessage(), e);</span>
+        }
+    }
+
+    // Check if user is member of chat room (string parameter version)
+    public boolean isChatRoomMember(String chatRoomId, String userId) {
+        try {
+<span class="fc" id="L136">            return chatRoomMemberRepository.existsByChatRoomIdAndUserId(</span>
+<span class="fc" id="L137">                    UUID.fromString(chatRoomId),  // Convert to UUID</span>
+<span class="fc" id="L138">                    UUID.fromString(userId));   </span>
+<span class="nc" id="L139">        } catch (IllegalArgumentException e) {</span>
+            // Return false for invalid UUID format
+<span class="nc" id="L141">            return false;</span>
+        }
+    }
+
+    // Get messages after specific timestamp (for polling/updates)
+    public List&lt;Message&gt; getMessagesSince(String chatRoomId, String sinceTimestamp) {
+<span class="fc" id="L147">        LocalDateTime since = LocalDateTime.parse(sinceTimestamp);  </span>
+
+<span class="fc" id="L149">        return messageRepository.findByChatRoomAndTimestampAfter(</span>
+<span class="fc" id="L150">                UUID.fromString(chatRoomId), since);  // Query messages after given time</span>
+    }
+
+    // Subscribe to real-time message stream for a chat room
+    public Object getStreamForChatRoom(String chatRoomId) {
+<span class="fc" id="L155">        return messageStreamService.subscribe(UUID.fromString(chatRoomId));</span>
+    }
+
+    // Inner class for pagination parameters
+    public static class PaginationRequest {
+        private final int page;  // Page number (0-based)
+        private final int size;  
+
+        public PaginationRequest() {
+<span class="fc" id="L164">            this(0, 20);  // Default: first page, 20 items</span>
+<span class="fc" id="L165">        }</span>
+
+<span class="fc" id="L167">        public PaginationRequest(Integer page, Integer size) {</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">            this.page = page != null ? page : 0;  </span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">            this.size = size != null ? size : 20; // Default to 20 items</span>
+<span class="fc" id="L170">        }</span>
+
+        public int getPage() {
+<span class="fc" id="L173">            return page;</span>
+        }
+
+        public int getSize() {
+<span class="fc" id="L177">            return size;</span>
+        }
+
+        public int page() {
+<span class="nc" id="L181">            return page;</span>
+        }
+
+        public int size() {
+<span class="nc" id="L185">            return size;</span>
+        }
+    }
+
+    // Get paginated messages as entity list
+    public List&lt;Message&gt; getMessages(UUID chatRoomId, PaginationRequest request) {
+<span class="fc" id="L191">        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), </span>
+<span class="fc" id="L192">                Sort.by(&quot;timestamp&quot;).descending());  // Newest messages first</span>
+<span class="fc" id="L193">        Page&lt;Message&gt; page = messageRepository.findByChatRoomIdAndIsDeletedFalseOrderByTimestampDesc(chatRoomId,</span>
+                pageable);
+<span class="fc" id="L195">        return page.getContent();  // Extract list from page</span>
+    }
+
+    // Get paginated messages as Page object (includes metadata)
+    public Page&lt;Message&gt; getMessagesPaginated(UUID chatRoomId, PaginationRequest request) {
+<span class="fc" id="L200">        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), </span>
+<span class="fc" id="L201">                Sort.by(&quot;timestamp&quot;).descending());</span>
+<span class="fc" id="L202">        return messageRepository.findByChatRoomIdAndIsDeletedFalseOrderByTimestampDesc(chatRoomId, pageable);</span>
+    }
+
+    // Get paginated messages since specific time
+    public Page&lt;Message&gt; getMessagesSincePaginated(UUID chatRoomId, LocalDateTime since, PaginationRequest request) {
+<span class="fc" id="L207">        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), </span>
+<span class="fc" id="L208">                Sort.by(&quot;timestamp&quot;).descending());</span>
+<span class="fc" id="L209">        return messageRepository.findByChatRoomIdAndTimestampGreaterThanAndIsDeletedFalse(chatRoomId, since, pageable);</span>
+    }
+
+    /**
+     * Get messages as DTOs to avoid lazy loading issues.
+     * Uses DTO projection for better performance (avoids N+1 query problem).
+     */
+    @Transactional(readOnly = true)
+    public Page&lt;MessageListDto&gt; getMessageDtosPaginated(UUID chatRoomId, PaginationRequest request) {
+<span class="nc" id="L218">        Pageable pageable = PageRequest.of(request.page(), request.size());</span>
+<span class="nc" id="L219">        return messageRepository.findMessageDtosByChatRoomId(chatRoomId, pageable);</span>
+    }
+
+    /**
+     * Soft deletes a message by setting the isDeleted flag.
+     * (Logical delete - message stays in database but marked as deleted)
+     *
+     * @param messageId
+     * @param userId    ID of the user performing the deletion.
+     */
+    public void deleteMessage(UUID messageId, UUID userId) {
+<span class="fc" id="L230">        Message message = messageRepository.findById(messageId)</span>
+<span class="fc" id="L231">                .orElseThrow(() -&gt; new RuntimeException(&quot;Message not found&quot;));</span>
+
+<span class="fc" id="L233">        message.softDelete(userId);  // Update message entity (sets isDeleted = true)</span>
+<span class="fc" id="L234">        messageRepository.save(message);  // Persist changes</span>
+<span class="fc" id="L235">        log.info(&quot;Message {} soft deleted by user {}&quot;, messageId, userId);</span>
+<span class="fc" id="L236">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

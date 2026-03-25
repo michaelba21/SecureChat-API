@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.controller</a> &gt; <span class="el_source">UserController.java</span></div><h1>UserController.java</h1><pre class="source lang-java linenums">package com.securechat.controller;
+
+import com.securechat.dto.ChatRoomDTO;
+import com.securechat.entity.User;
+import com.securechat.exception.UnauthorizedException;
+import com.securechat.service.ChatRoomService;
+import com.securechat.service.UserService;
+import com.securechat.service.UserSyncService;
+import com.securechat.util.AuthUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+@RestController
+@RequestMapping({ &quot;/users&quot;, &quot;/api/users&quot; })// Dual path mapping for flexibility
+<span class="fc" id="L28">public class UserController {</span>
+
+<span class="fc" id="L30">    private static final Logger logger = LoggerFactory.getLogger(UserController.class);</span>
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private ChatRoomService chatRoomService;
+
+    @Autowired
+    private UserSyncService userSyncService;
+
+    // Helper to get current user ID safely from Keycloak JWT
+    private UUID getCurrentUserId(Authentication auth) {
+<span class="fc bfc" id="L43" title="All 4 branches covered.">        if (auth == null || !auth.isAuthenticated()) {</span>
+<span class="fc" id="L44">            throw new UnauthorizedException(&quot;User not authenticated&quot;);</span>
+        }
+
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if (!(auth instanceof JwtAuthenticationToken)) {</span>
+<span class="nc" id="L48">            throw new UnauthorizedException(&quot;Authentication is not a JWT token&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L52">            JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) auth;</span>
+<span class="fc" id="L53">            Jwt jwt = jwtAuth.getToken();</span>
+            
+            // Extract UUID from Keycloak JWT subject claim
+<span class="fc" id="L56">            String keycloakUuid = jwt.getSubject();</span>
+<span class="pc bpc" id="L57" title="2 of 4 branches missed.">            if (keycloakUuid == null || keycloakUuid.trim().isEmpty()) {</span>
+<span class="nc" id="L58">                throw new UnauthorizedException(&quot;JWT subject claim is null or empty&quot;);</span>
+            }
+            
+<span class="fc" id="L61">            UUID userId = UUID.fromString(keycloakUuid);</span>
+<span class="fc" id="L62">            logger.debug(&quot;[UserController] Authenticated Keycloak user: {}&quot;, userId);</span>
+<span class="fc" id="L63">            return userId;</span>
+            
+<span class="nc" id="L65">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L66">            throw new UnauthorizedException(&quot;Invalid user identifier from Keycloak JWT&quot;, e);</span>
+        }
+    }
+ // GET all users (public/authenticated endpoint)
+    @GetMapping
+    public ResponseEntity&lt;List&lt;User&gt;&gt; getAllUsers() {
+        try {
+<span class="fc" id="L73">            return ResponseEntity.ok(userService.getAllUsers());</span>
+<span class="nc" id="L74">        } catch (RuntimeException e) {</span>
+<span class="nc" id="L75">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+ // GET specific user by ID
+    @GetMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;User&gt; getUser(@PathVariable UUID id) {
+<span class="fc" id="L81">        User user = userService.getUserById(id);</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build();</span>
+    }
+// PUT full user update with Spring Security authorization
+    @PutMapping(&quot;/{id}&quot;)
+    @PreAuthorize(&quot;hasAuthority('ROLE_ADMIN') or #id == authentication.principal.id&quot;) // Safer: compare UUID directly
+    public ResponseEntity&lt;User&gt; updateUser(@PathVariable UUID id, @RequestBody User userDetails) {
+        try {
+<span class="nc" id="L89">            return ResponseEntity.ok(userService.updateUser(id, userDetails));</span>
+<span class="nc" id="L90">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L91">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+   // PATCH partial user update with same security rules as PU
+    @PatchMapping(&quot;/{id}&quot;)
+    @PreAuthorize(&quot;hasAuthority('ROLE_ADMIN') or #id == authentication.principal.id&quot;)
+    public ResponseEntity&lt;User&gt; partialUpdateUser(@PathVariable UUID id, @RequestBody Map&lt;String, Object&gt; updates) {
+        try {
+<span class="nc" id="L99">            return ResponseEntity.ok(userService.partialUpdateUser(id, updates));</span>
+<span class="nc" id="L100">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L101">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+// GET users by search query
+    @GetMapping(&quot;/search&quot;)
+    public ResponseEntity&lt;List&lt;User&gt;&gt; searchUsers(@RequestParam String q) {
+<span class="nc" id="L107">        return ResponseEntity.ok(userService.searchUsers(q));</span>
+    }
+ // PUT update user roles - ADMIN only endpoint
+    @PutMapping(&quot;/{id}/roles&quot;)
+    @PreAuthorize(&quot;hasAuthority('ROLE_ADMIN')&quot;)
+    public ResponseEntity&lt;User&gt; updateUserRoles(@PathVariable UUID id, @RequestBody Set&lt;User.UserRole&gt; roles) {
+<span class="nc" id="L113">        return ResponseEntity.ok(userService.updateUserRoles(id, roles));</span>
+    }
+   // DELETE user - ADMIN only
+    @DeleteMapping(&quot;/{id}&quot;)
+    @PreAuthorize(&quot;hasAuthority('ROLE_ADMIN')&quot;)
+    public ResponseEntity&lt;Void&gt; deleteUser(@PathVariable UUID id) {
+<span class="nc" id="L119">        userService.deleteUser(id);</span>
+<span class="nc" id="L120">        return ResponseEntity.noContent().build();</span>
+    }
+ // GET current user profile - synced with Keycloak authentication
+    @GetMapping({ &quot;/me&quot;, &quot;/profile&quot; })
+    public ResponseEntity&lt;User&gt; getMe(Authentication authentication) {
+        try {
+            // Extract UUID from Keycloak JWT
+<span class="fc" id="L127">            UUID keycloakUserId = getCurrentUserId(authentication);</span>
+            
+            // Ensure user is synced with local database
+<span class="fc" id="L130">            JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;</span>
+<span class="fc" id="L131">            Jwt jwt = jwtAuth.getToken();</span>
+<span class="fc" id="L132">            User syncedUser = userSyncService.getOrCreateUser(jwt);</span>
+            
+<span class="fc" id="L134">            logger.info(&quot;[UserController /me] Keycloak user: {} → Local user ID: {}, username: {}&quot;, </span>
+<span class="fc" id="L135">                keycloakUserId, syncedUser.getId(), syncedUser.getUsername());</span>
+            
+<span class="fc" id="L137">            return ResponseEntity.ok(syncedUser);</span>
+<span class="fc" id="L138">        } catch (UnauthorizedException e) {</span>
+<span class="fc" id="L139">            logger.warn(&quot;[UserController /me] Unauthorized: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L140">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();</span>
+<span class="nc" id="L141">        } catch (Exception e) {</span>
+<span class="nc" id="L142">            logger.error(&quot;[UserController /me] Error retrieving user profile: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L143">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();</span>
+        }
+    }
+    // PUT update current user's profile
+    @PutMapping(&quot;/profile&quot;)
+    public ResponseEntity&lt;User&gt; updateProfile(Authentication authentication, @RequestBody User userDetails) {
+<span class="pc bpc" id="L149" title="2 of 4 branches missed.">        if (authentication == null || !authentication.isAuthenticated()) {</span>
+<span class="nc" id="L150">            throw new UnauthorizedException(&quot;User not authenticated&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L154">            UUID userId = getCurrentUserId(authentication);</span>
+<span class="fc" id="L155">            return ResponseEntity.ok(userService.updateUser(userId, userDetails));</span>
+<span class="fc" id="L156">        } catch (UnauthorizedException | IllegalArgumentException e) {</span>
+<span class="fc" id="L157">            return ResponseEntity.badRequest().build();</span>
+        }
+    }
+    // GET chatrooms created by a specific user
+    @GetMapping(&quot;/{id}/chatrooms/created&quot;)
+    public ResponseEntity&lt;List&lt;ChatRoomDTO&gt;&gt; getCreatedChatrooms(@PathVariable UUID id) {
+        try {
+<span class="fc" id="L164">            return ResponseEntity.ok(chatRoomService.getChatroomsByCreator(id));</span>
+<span class="nc" id="L165">        } catch (RuntimeException e) {</span>
+<span class="nc" id="L166">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

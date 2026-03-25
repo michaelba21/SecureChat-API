@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChatRoom.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.entity</a> &gt; <span class="el_source">ChatRoom.java</span></div><h1>ChatRoom.java</h1><pre class="source lang-java linenums">package com.securechat.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;chat_rooms&quot;, indexes = {
+    @Index(name = &quot;idx_chatroom_created_by&quot;, columnList = &quot;created_by&quot;),      // Optimizes creator-based queries
+    @Index(name = &quot;idx_chatroom_is_private&quot;, columnList = &quot;is_private&quot;),      // Optimizes privacy-based filtering
+    @Index(name = &quot;idx_chatroom_created_at&quot;, columnList = &quot;created_at&quot;)       // Optimizes chronological sorting
+})
+<span class="fc" id="L14">public class ChatRoom {</span>
+  
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;  // Unique identifier for the chatroom
+
+  @Column(nullable = false, length = 100)
+  private String name;  // Display name with 100-character limit
+
+  @Column(length = 500)
+  private String description;  // Optional description with 500-character limit
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = &quot;created_by&quot;, nullable = false)
+  @JsonIgnore  // Prevents circular JSON serialization when serializing ChatRoom
+  private User createdBy;  
+
+  @Column(name = &quot;created_at&quot;, nullable = false)
+  private LocalDateTime createdAt;  // Timestamp of chatroom creation
+
+<span class="fc" id="L34">  @Column(name = &quot;is_private&quot;, nullable = false)</span>
+<span class="fc" id="L35">  private Boolean isPrivate = false;  // Privacy flag - default is public chatroom</span>
+
+<span class="fc" id="L37">  @Column(name = &quot;max_participants&quot;, nullable = false)</span>
+<span class="fc" id="L38">  private Integer maxParticipants = 100;  // Capacity limit with default of 100 users</span>
+
+  @Column(name = &quot;deleted_at&quot;)
+  private LocalDateTime deletedAt;  // Soft delete timestamp (null if active)
+
+  @Column(name = &quot;deleted_by&quot;)
+  private UUID deletedBy;  // User ID who performed soft delete (nullable)
+
+<span class="fc" id="L46">  @OneToMany(</span>
+      mappedBy = &quot;chatRoom&quot;,
+      cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE},
+      orphanRemoval = true,
+      fetch = FetchType.LAZY
+  )
+  @JsonIgnore  // Prevents serializing all messages when fetching chatroom
+  private java.util.List&lt;Message&gt; messages = new java.util.ArrayList&lt;&gt;();  // All messages in chatroom
+
+<span class="fc" id="L55">  @OneToMany(</span>
+      mappedBy = &quot;chatRoom&quot;,
+      cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE},
+      orphanRemoval = true,
+      fetch = FetchType.LAZY
+  )
+  @JsonIgnore  // Prevents serializing all members when fetching chatroom
+  private java.util.List&lt;ChatRoomMember&gt; members = new java.util.ArrayList&lt;&gt;();  
+
+  @PrePersist  // JPA lifecycle callback - executes before entity is persisted
+  protected void onCreate() {
+<span class="nc" id="L66">    createdAt = LocalDateTime.now();  </span>
+<span class="nc" id="L67">  }</span>
+
+  // Manual Getters and Setters (no Lombok for explicit control)
+<span class="fc" id="L70">  public UUID getId() { return id; }</span>
+<span class="fc" id="L71">  public void setId(UUID id) { this.id = id; }</span>
+
+<span class="fc" id="L73">  public String getName() { return name; }</span>
+<span class="fc" id="L74">  public void setName(String name) { this.name = name; }</span>
+
+<span class="fc" id="L76">  public String getDescription() { return description; }</span>
+<span class="fc" id="L77">  public void setDescription(String description) { this.description = description; }</span>
+
+<span class="fc" id="L79">  public User getCreatedBy() { return createdBy; }</span>
+<span class="fc" id="L80">  public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }</span>
+
+<span class="fc" id="L82">  public LocalDateTime getCreatedAt() { return createdAt; }</span>
+<span class="fc" id="L83">  public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }</span>
+
+<span class="fc" id="L85">  public Boolean getIsPrivate() { return isPrivate; }</span>
+<span class="fc" id="L86">  public void setIsPrivate(Boolean isPrivate) { this.isPrivate = isPrivate; }</span>
+
+<span class="fc" id="L88">  public Integer getMaxParticipants() { return maxParticipants; }</span>
+<span class="fc" id="L89">  public void setMaxParticipants(Integer maxParticipants) { this.maxParticipants = maxParticipants; }</span>
+
+<span class="nc" id="L91">  public LocalDateTime getDeletedAt() { return deletedAt; }</span>
+<span class="nc" id="L92">  public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }</span>
+
+<span class="nc" id="L94">  public UUID getDeletedBy() { return deletedBy; }</span>
+<span class="nc" id="L95">  public void setDeletedBy(UUID deletedBy) { this.deletedBy = deletedBy; }</span>
+
+<span class="nc" id="L97">  public java.util.List&lt;Message&gt; getMessages() { return messages; }</span>
+<span class="nc" id="L98">  public void setMessages(java.util.List&lt;Message&gt; messages) { this.messages = messages; }</span>
+
+<span class="nc" id="L100">  public java.util.List&lt;ChatRoomMember&gt; getMembers() { return members; }</span>
+<span class="nc" id="L101">  public void setMembers(java.util.List&lt;ChatRoomMember&gt; members) { this.members = members; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

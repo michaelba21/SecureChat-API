@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ErrorResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.dto</a> &gt; <span class="el_source">ErrorResponse.java</span></div><h1>ErrorResponse.java</h1><pre class="source lang-java linenums">package com.securechat.dto;
+
+import java.time.LocalDateTime;
+
+public class ErrorResponse {
+    private String error;  // Short error type/code (e.g., &quot;NOT_FOUND&quot;, &quot;VALIDATION_ERROR&quot;)
+    private String message;  // Human-readable error description
+    private LocalDateTime timestamp; 
+
+    // Primary constructor - automatically sets timestamp to current time
+<span class="fc" id="L11">    public ErrorResponse(String error, String message) {</span>
+<span class="fc" id="L12">        this.error = error;</span>
+<span class="fc" id="L13">        this.message = message;</span>
+<span class="fc" id="L14">        this.timestamp = LocalDateTime.now(); // Auto-captures error time</span>
+<span class="fc" id="L15">    }</span>
+
+    // Alternative constructor for custom timestamp (testing or delayed responses)
+<span class="fc" id="L18">    public ErrorResponse(String error, String message, LocalDateTime timestamp) {</span>
+<span class="fc" id="L19">        this.error = error;</span>
+<span class="fc" id="L20">        this.message = message;</span>
+<span class="fc" id="L21">        this.timestamp = timestamp;</span>
+<span class="fc" id="L22">    }</span>
+
+    // Standard getters and setters for serialization and modification
+    public String getError() {
+<span class="fc" id="L26">        return error;</span>
+    }
+
+    public void setError(String error) {
+<span class="fc" id="L30">        this.error = error;</span>
+<span class="fc" id="L31">    }</span>
+
+    public String getMessage() {
+<span class="fc" id="L34">        return message;</span>
+    }
+
+    public void setMessage(String message) {
+<span class="fc" id="L38">        this.message = message;</span>
+<span class="fc" id="L39">    }</span>
+
+    public LocalDateTime getTimestamp() {
+<span class="fc" id="L42">        return timestamp;</span>
+    }
+
+    public void setTimestamp(LocalDateTime timestamp) {
+<span class="fc" id="L46">        this.timestamp = timestamp;</span>
+<span class="fc" id="L47">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

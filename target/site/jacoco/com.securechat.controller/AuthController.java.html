@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SecureChat API</a> &gt; <a href="index.source.html" class="el_package">com.securechat.controller</a> &gt; <span class="el_source">AuthController.java</span></div><h1>AuthController.java</h1><pre class="source lang-java linenums">package com.securechat.controller;
+import com.securechat.dto.AuthRequest;
+import com.securechat.dto.AuthResponse;
+import com.securechat.dto.LoginRequest;
+import com.securechat.service.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+
+@RestController
+@RequestMapping(&quot;/api/auth&quot;) // Base path for authentication endpoints
+@CrossOrigin(origins = &quot;*&quot;)  // For local development testing - allow all origins
+<span class="fc" id="L16">public class AuthController {</span>
+
+    @Autowired
+    private AuthService authService; // Inject authentication service
+
+    /*
+     * LOCAL REGISTRATION &amp; LOGIN DISABLED
+     * 
+     * Switch to Keycloak-only authentication for single source of truth.
+     * All users must now register/login via Keycloak to ensure UUID consistency
+     * and prevent 401/403 errors from UUID mismatches.
+     */
+
+    @PostMapping(&quot;/login&quot;)
+    public ResponseEntity&lt;AuthResponse&gt; login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+<span class="fc" id="L31">        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(</span>
+<span class="fc" id="L32">            AuthResponse.error(&quot;⚠️  Local login disabled. Please use Keycloak OAuth2 flow. &quot; +</span>
+                &quot;Token endpoint: http://localhost:9090/realms/SecureChat/protocol/openid-connect/token&quot;)
+        );
+    }
+
+    @PostMapping(&quot;/register&quot;)
+    public ResponseEntity&lt;AuthResponse&gt; register(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
+<span class="fc" id="L39">        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(</span>
+<span class="fc" id="L40">            AuthResponse.error(&quot;⚠️  Local registration disabled. Please register via Keycloak admin console. &quot; +</span>
+                &quot;Admin URL: http://localhost:9090/admin/master/console/&quot;)
+        );
+    }
+
+    @PostMapping(&quot;/refresh&quot;)
+    public ResponseEntity&lt;AuthResponse&gt; refresh(@RequestBody java.util.Map&lt;String, String&gt; payload, HttpServletRequest httpRequest) {
+<span class="fc" id="L47">        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(</span>
+<span class="fc" id="L48">            AuthResponse.error(&quot;⚠️  Keycloak handles token refresh. Use Keycloak token endpoint with refresh_token grant type.&quot;)</span>
+        );
+    }
+
+    /**
+     * Check authentication status - useful for debugging and verification.
+     * Returns user info from the Keycloak JWT token.
+     */
+    @GetMapping(&quot;/status&quot;)
+    public ResponseEntity&lt;java.util.Map&lt;String, Object&gt;&gt; authStatus(
+            org.springframework.security.oauth2.jwt.Jwt jwt,
+            org.springframework.security.core.Authentication auth) {
+        
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (jwt == null) {</span>
+<span class="nc" id="L62">            return ResponseEntity.ok(java.util.Map.of(</span>
+<span class="nc" id="L63">                &quot;authenticated&quot;, false,</span>
+                &quot;message&quot;, &quot;Not authenticated. Please login via Keycloak&quot;,
+                &quot;keycloakUrl&quot;, &quot;http://localhost:9090/realms/SecureChat/protocol/openid-connect/auth&quot;
+            ));
+        }
+        
+<span class="nc" id="L69">        return ResponseEntity.ok(java.util.Map.ofEntries(</span>
+<span class="nc" id="L70">            java.util.Map.entry(&quot;authenticated&quot;, true),</span>
+<span class="nc" id="L71">            java.util.Map.entry(&quot;userId&quot;, jwt.getSubject()),</span>
+<span class="nc" id="L72">            java.util.Map.entry(&quot;username&quot;, jwt.getClaimAsString(&quot;preferred_username&quot;)),</span>
+<span class="nc" id="L73">            java.util.Map.entry(&quot;email&quot;, jwt.getClaimAsString(&quot;email&quot;)),</span>
+<span class="nc" id="L74">            java.util.Map.entry(&quot;roles&quot;, jwt.getClaimAsStringList(&quot;roles&quot;)),</span>
+<span class="nc" id="L75">            java.util.Map.entry(&quot;expiresAt&quot;, jwt.getExpiresAt()),</span>
+<span class="nc" id="L76">            java.util.Map.entry(&quot;message&quot;, &quot;✅ Valid Keycloak token&quot;)</span>
+        ));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+<span class="nc" id="L81">        String header = request.getHeader(&quot;X-Forwarded-For&quot;); // Check proxy header first</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">        if (header != null &amp;&amp; !header.isBlank()) {</span>
+<span class="nc" id="L83">            return header.split(&quot;,&quot;)[0].trim(); // Use first IP in chain (client's original IP)</span>
+        }
+<span class="nc" id="L85">        return request.getRemoteAddr(); // Fallback to direct connection IP</span>
+    }
+
+    private String getUserAgent(HttpServletRequest request) {
+<span class="nc" id="L89">        String userAgent = request.getHeader(&quot;User-Agent&quot;); </span>
+        // Some clients (e.g., PowerShell Invoke-RestMethod) may omit User-Agent.
+        // Keep refresh_tokens.user_agent non-null by providing a safe default.
+<span class="nc bnc" id="L92" title="All 4 branches missed.">        return (userAgent == null || userAgent.isBlank()) ? &quot;unknown&quot; : userAgent; // Default to &quot;unknown&quot; if missing</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
