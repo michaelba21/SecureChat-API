@@ -1,0 +1,678 @@
+{
+  "info": {
+    "_postman_id": "securechat-keycloak-fix",
+    "name": "SecureChat - Keycloak-Only Authentication Tests",
+    "description": "Test endpoints for Keycloak-only authentication fix. All endpoints require valid Keycloak OAuth2 token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Keycloak Authentication",
+      "item": [
+        {
+          "name": "Get Access Token (Password Grant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var jsonData = pm.response.json();",
+                  "  pm.environment.set('access_token', jsonData.access_token);",
+                  "  console.log('[Token] Saved access_token to environment');",
+                  "  console.log('[Token] Expires in: ' + jsonData.expires_in + ' seconds');",
+                  "} else {",
+                  "  console.log('[Token] Error: ' + pm.response.code);",
+                  "  console.log(pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "securechat-backend",
+                  "type": "text"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "your-client-secret",
+                  "type": "text",
+                  "disabled": false
+                },
+                {
+                  "key": "username",
+                  "value": "testuser",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "password123",
+                  "type": "text"
+                },
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:9090/realms/SecureChat/protocol/openid-connect/token",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "realms",
+                "SecureChat",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            },
+            "description": "Get OAuth2 access token from Keycloak using password grant.\n\n**SETUP REQUIRED**: \n1. Create test user in Keycloak admin console\n2. Update client_secret with actual secret from Keycloak\n3. Replace username/password with your test user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication Verification Endpoints",
+      "item": [
+        {
+          "name": "GET /api/auth/whoami (UUID Sync Check)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var data = pm.response.json();",
+                  "  console.log('[WHOAMI] Keycloak ID: ' + data.keycloakUserId);",
+                  "  console.log('[WHOAMI] Local ID: ' + data.localUserId);",
+                  "  console.log('[WHOAMI] Username: ' + data.username);",
+                  "  if (data.keycloakUserId === data.localUserId) {",
+                  "    console.log('[SUCCESS] UUIDs match! ✅');",
+                  "  } else {",
+                  "    console.log('[ERROR] UUID mismatch! ❌');",
+                  "  }",
+                  "} else {",
+                  "  console.log('[AUTH ERROR] ' + pm.response.code + ': ' + pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/auth/whoami",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "whoami"
+              ]
+            },
+            "description": "**CRITICAL TEST**: Verify that Keycloak user ID and local database user ID match.\n\n✅ **Success**: keycloakUserId === localUserId\n❌ **Failure**: UUID mismatch indicates sync problem\n\nThis is the first endpoint to test - if this fails, all other endpoints will fail with 403."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/status (Authentication Health)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var data = pm.response.json();",
+                  "  console.log('[STATUS] Authenticated: ' + data.authenticated);",
+                  "  console.log('[STATUS] User ID: ' + data.userId);",
+                  "  console.log('[STATUS] Username: ' + data.username);",
+                  "  console.log('[STATUS] Roles: ' + JSON.stringify(data.roles));",
+                  "  console.log('[STATUS] Issuer: ' + data.tokenIssuer);",
+                  "} else {",
+                  "  console.log('[AUTH ERROR] ' + pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/auth/status",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "status"
+              ]
+            },
+            "description": "Check authentication status and verify Keycloak token is valid.\n\n✅ **Success**: 200 OK with authenticated=true\n❌ **Failure**: 401 Unauthorized"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/health (Simple Health Check)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var data = pm.response.json();",
+                  "  console.log('[HEALTH] Status: ' + data.status);",
+                  "} else {",
+                  "  console.log('[ERROR] ' + pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/auth/health",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "health"
+              ]
+            },
+            "description": "Simple health check endpoint to verify authentication is working."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Profile Endpoints",
+      "item": [
+        {
+          "name": "GET /api/users/me (Keycloak-Synced Profile)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var user = pm.response.json();",
+                  "  console.log('[ME] User ID: ' + user.id);",
+                  "  console.log('[ME] Username: ' + user.username);",
+                  "  console.log('[ME] Email: ' + user.email);",
+                  "  pm.environment.set('current_user_id', user.id);",
+                  "  console.log('[ME] Saved user ID to current_user_id');",
+                  "} else if (pm.response.code === 401) {",
+                  "  console.log('[ERROR] 401 Unauthorized - Token may be expired or invalid');",
+                  "} else {",
+                  "  console.log('[ERROR] ' + pm.response.code + ': ' + pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/users/me",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Get current user profile. User is automatically synced with Keycloak on each request.\n\n✅ **Success**: 200 OK with user data\n❌ **Failure**: 401 Unauthorized"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/users/{id} (Get Specific User)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/users/{{current_user_id}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "users",
+                "{{current_user_id}}"
+              ]
+            },
+            "description": "Get user by ID. Uses {{current_user_id}} from previous /me endpoint."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chatroom Operations (UUID Consistency Tests)",
+      "item": [
+        {
+          "name": "POST /api/chatrooms (Create Chatroom)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  var data = pm.response.json();",
+                  "  pm.environment.set('chatroom_id', data.id);",
+                  "  console.log('[CHATROOM] Created: ' + data.id);",
+                  "  console.log('[CHATROOM] Name: ' + data.name);",
+                  "} else {",
+                  "  console.log('[ERROR] ' + pm.response.code);",
+                  "  console.log(pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"test-chatroom-{{$timestamp}}\",\n  \"description\": \"Keycloak test chatroom\",\n  \"isPrivate\": false\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/chatrooms",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "chatrooms"
+              ]
+            },
+            "description": "Create a new chatroom. Creator is automatically set to authenticated user from Keycloak.\n\n✅ **Success**: 200/201 OK with chatroom ID\n❌ **Failure**: 401 Unauthorized or 403 Forbidden"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chatrooms (List Chatrooms)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/chatrooms",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "chatrooms"
+              ]
+            },
+            "description": "List all chatrooms accessible to authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chatrooms/{id}/members (Add Member - CRITICAL TEST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  console.log('[MEMBER] ✅ Successfully added member');",
+                  "  console.log('[MEMBER] Status: ' + pm.response.code);",
+                  "} else if (pm.response.code === 403) {",
+                  "  console.log('[MEMBER] ❌ 403 Forbidden - UUID mismatch detected!');",
+                  "  console.log('[MEMBER] This means ChatRoomMember.userId does not match JWT UUID');",
+                  "} else if (pm.response.code === 401) {",
+                  "  console.log('[MEMBER] ❌ 401 Unauthorized - Token invalid');",
+                  "} else {",
+                  "  console.log('[MEMBER] Error: ' + pm.response.code);",
+                  "  console.log(pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{current_user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/chatrooms/{{chatroom_id}}/members",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "chatrooms",
+                "{{chatroom_id}}",
+                "members"
+              ]
+            },
+            "description": "**CRITICAL TEST**: Add member to chatroom using Keycloak user UUID.\n\n✅ **Success**: 200 OK - Members added correctly\n❌ **Failure**: \n- **403 Forbidden**: UUID mismatch (old system still has different UUIDs)\n- **401 Unauthorized**: Invalid Keycloak token\n\n**This is the key test - if it fails with 403, database still has UUID conflicts.**"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chatrooms/{id}/members (Verify Membership)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var members = pm.response.json();",
+                  "  console.log('[MEMBERS] Count: ' + members.length);",
+                  "  if (members.length > 0) {",
+                  "    for (var i = 0; i < members.length; i++) {",
+                  "      console.log('[MEMBERS] ' + i + ': ' + members[i].username + ' (' + members[i].userId + ')');",
+                  "    }",
+                  "  }",
+                  "} else {",
+                  "  console.log('[ERROR] ' + pm.response.code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/chatrooms/{{chatroom_id}}/members",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "chatrooms",
+                "{{chatroom_id}}",
+                "members"
+              ]
+            },
+            "description": "Verify members were added correctly to chatroom."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Negative Test Cases (Should Fail)",
+      "item": [
+        {
+          "name": "GET /api/auth/whoami (No Token - Should 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/auth/whoami",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "whoami"
+              ]
+            },
+            "description": "Test without Authorization header. Should return 401 Unauthorized.\n\n✅ **Expected**: 401 Unauthorized"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/whoami (Invalid Token - Should 401)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid.jwt.token",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/auth/whoami",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "whoami"
+              ]
+            },
+            "description": "Test with malformed JWT. Should return 401 Unauthorized.\n\n✅ **Expected**: 401 Unauthorized"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login (Should 501 - Local Auth Disabled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Test local login endpoint. Should return 501 NOT_IMPLEMENTED because local auth is disabled.\n\n✅ **Expected**: 501 Not Implemented (message about using Keycloak)"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/register (Should 501 - Local Auth Disabled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/register",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Test local registration endpoint. Should return 501 NOT_IMPLEMENTED because local auth is disabled.\n\n✅ **Expected**: 501 Not Implemented (message about using Keycloak admin console)"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "current_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chatroom_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
